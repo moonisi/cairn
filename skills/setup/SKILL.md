@@ -14,7 +14,13 @@ description: Cairn Vault(.cairn/) + cairn.config.json을 소비자 프로젝트�
 
 ## 도구 경로
 
-`CAIRN_DIR` 환경변수(소비자 Vault, 기본 `${CLAUDE_PROJECT_DIR}/.cairn`) + 코어 모듈 경로를 확인한다. plugin 설치 시 코어는 `${CLAUDE_PLUGIN_ROOT}/core`. 아래 `python3` 호출은 `PYTHONPATH=<core>`로 실행(`<core>` = plugin-root/core).
+`CAIRN_DIR` 환경변수(소비자 Vault, 기본값은 소비자 repo의 `.cairn`)와 코어 모듈 경로를 확인한다.
+아래 `python3` 호출은 항상 `PYTHONPATH=<core>`로 실행한다.
+
+- Claude Code plugin 설치 시 `<core>`는 plugin root의 `core/`다.
+- Codex plugin 설치 시 `<core>`는 Codex plugin bundle/cache 안의 `core/`다.
+- Codex repo-local hook adapter만 쓰거나 plugin skill 경로가 불확실하면, 외부 clone 경로의
+  `$CAIRN_ROOT/core`를 `<core>`로 쓴다(예: `git clone https://github.com/moonisi/cairn.git ~/cairn`).
 
 ## 절차
 

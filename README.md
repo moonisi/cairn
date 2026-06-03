@@ -152,7 +152,8 @@ managed settings' `enabledPlugins`**. That is the **only** way.
 
 🔵 The current operating default is the **Option-C fallback**.
 
-The Codex plugin installs skills/docs/aux artifacts only; hooks are placed separately as a
+The Codex plugin installs the `/cairn:setup` and `/cairn:ingest` skills plus docs/aux artifacts only;
+hooks are placed separately as a
 repo-local `.codex/hooks.json` adapter in the consumer repo. The reason: in Gate D-1 testing the
 Codex plugin passed validation/install/cache-copy, but the default `hooks/hooks.json` was not
 auto-registered as a `codex exec` runtime lifecycle hook source (KC-Fn-70).
@@ -171,7 +172,7 @@ cp <CAIRN_ROOT_ABS>/adapters/codex/hooks.json.example .codex/hooks.json
 sed -i "s#<CAIRN_ROOT_ABS>#$HOME/projects/cairn#g" .codex/hooks.json
 
 # 3) Create the Vault config (without it, hooks fire but produce no handoff draft).
-#    Share the .cairn/ you bootstrapped via /cairn:setup on the Claude Code side, or write it manually.
+#    Run /cairn:setup from the Codex plugin, share an existing .cairn/, or write it manually.
 ```
 
 - `CAIRN_DIR` defaults to the consumer repo's `$(pwd)/.cairn` (overridable).
@@ -188,11 +189,13 @@ sed -i "s#<CAIRN_ROOT_ABS>#$HOME/projects/cairn#g" .codex/hooks.json
 ### Codex plugin install — no hooks
 
 `.codex-plugin/plugin.json` has no `hooks` field. The Codex plugin is the unit that ships the
-`/cairn:ingest` skill plus docs/aux artifacts; it does not install SessionStart/Stop hooks or create
-a trust entry. This separation is the Option-C contract that avoids KC-Fn-68/69/70.
+`/cairn:setup` and `/cairn:ingest` skills plus docs/aux artifacts; it does not install
+SessionStart/Stop hooks or create a trust entry. This separation is the Option-C contract that avoids
+KC-Fn-68/69/70.
 
 To use hooks in Codex, you must install the repo-local `.codex/hooks.json` adapter above separately,
 and check Codex's `/hooks` review or the `[hooks.state]` trust record in `~/.codex/config.toml`.
+You can create the Vault config with `/cairn:setup` after installing the Codex plugin.
 
 ### Packaging
 

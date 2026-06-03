@@ -148,7 +148,7 @@ plugin hook은 차단**됩니다.
 
 🔵 현재 운영 기본값은 **C안 fallback**입니다.
 
-Codex plugin은 skill·문서·보조 산출물로만 설치하고, hook은 소비자 repo의
+Codex plugin은 `/cairn:setup`·`/cairn:ingest` skill과 문서·보조 산출물로만 설치하고, hook은 소비자 repo의
 repo-local `.codex/hooks.json` adapter로 별도 배치합니다. 이유는 Gate D-1 실측에서 Codex plugin이
 validation·install·cache 복사까지는 통과했지만, 기본 `hooks/hooks.json`가 `codex exec` runtime
 lifecycle hook source로 자동 등록되지 않았기 때문입니다(KC-Fn-70).
@@ -167,7 +167,7 @@ cp <CAIRN_ROOT_ABS>/adapters/codex/hooks.json.example .codex/hooks.json
 sed -i "s#<CAIRN_ROOT_ABS>#$HOME/projects/cairn#g" .codex/hooks.json
 
 # 3) Vault config 생성 (없으면 hook이 발동해도 handoff draft를 안 만듦)
-#    Claude Code 쪽에서 /cairn:setup으로 만들어 둔 .cairn/를 공유하거나, 수동 작성
+#    Codex plugin의 /cairn:setup을 실행하거나, 이미 만든 .cairn/를 공유하거나, 수동 작성
 ```
 
 - `CAIRN_DIR`은 기본적으로 소비자 repo의 `$(pwd)/.cairn`를 가리킵니다(override 가능).
@@ -182,12 +182,13 @@ sed -i "s#<CAIRN_ROOT_ABS>#$HOME/projects/cairn#g" .codex/hooks.json
 
 ### Codex plugin 설치 — hook 없음
 
-`.codex-plugin/plugin.json`에는 `hooks` 필드가 없습니다. Codex plugin은 `/cairn:ingest` skill과
-문서·보조 산출물을 배포하는 단위이며, SessionStart/Stop hook을 설치하거나 trust 항목을 만들지
-않습니다. 이 분리는 KC-Fn-68/69/70을 회피하기 위한 C안 계약입니다.
+`.codex-plugin/plugin.json`에는 `hooks` 필드가 없습니다. Codex plugin은 `/cairn:setup`·`/cairn:ingest`
+skill과 문서·보조 산출물을 배포하는 단위이며, SessionStart/Stop hook을 설치하거나 trust 항목을
+만들지 않습니다. 이 분리는 KC-Fn-68/69/70을 회피하기 위한 C안 계약입니다.
 
 Codex에서 hook까지 쓰려면 반드시 위의 repo-local `.codex/hooks.json` adapter를 별도로 설치하고,
 Codex의 `/hooks` review 또는 `~/.codex/config.toml`의 `[hooks.state]` trust 기록을 확인하세요.
+Vault config는 Codex plugin 설치 후 `/cairn:setup`으로 만들 수 있습니다.
 
 ### Packaging
 

@@ -141,10 +141,10 @@ A. That's when the admin has turned on `allowManagedHooksOnly`. It blocks not ju
 A. Yes. But the current operating default is a repo-local `.codex/hooks.json` adapter rather than
    plugin-bundled hooks. Copy `adapters/codex/hooks.json.example` to your consumer repo's
    `.codex/hooks.json` and replace `<CAIRN_ROOT_ABS>` with this Cairn repo's absolute path. You also
-   need to create `.cairn/cairn.config.json` first for the handoff draft to be produced. The Codex
-   plugin installs skills/docs only and does not include hooks. After installing the adapter, confirm it
-   in Codex via `/hooks` review or the trust record in `~/.codex/config.toml` (see the "Codex" section of
-   [README.en.md](README.en.md)).
+   need to create `.cairn/cairn.config.json` first for the handoff draft to be produced. If you install
+   the Codex plugin, you can create that config with `/cairn:setup` and use `/cairn:ingest` too. The
+   plugin still does not include hooks. After installing the adapter, confirm it in Codex via `/hooks`
+   review or the trust record in `~/.codex/config.toml` (see the "Codex" section of [README.md](README.md)).
 
 **Q. How do I update when a new version comes out?**
 A. Two lines in Claude Code:

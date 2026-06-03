@@ -3,6 +3,7 @@
 런타임·도메인 무관 **연속성/지식축적 코어**. 세션이 끊겨도 맥락이 이어지고, 작업 중 본
 외부 지식이 흩어지지 않게 모아두는 plugin. 저장소는 **markdown + git뿐**(zero 외부 의존).
 
+> 🌐 **English**: [README.en.md](README.en.md) · [Getting Started](GETTING-STARTED.en.md)
 > 처음이라면 [안내서.md](안내서.md)부터 읽으세요 — 개념과 설치를 단계별로 풀어 씁니다.
 
 ---
@@ -37,7 +38,9 @@ cairn/
 │   └── *.sh, *.py               # hook 스크립트 (런타임 공유, 무수정)
 ├── core/                        # 런타임·도메인 무관 코어 6 모듈 + self-test
 │   └── *.py                     # zero-dep (Python stdlib만)
-└── skills/ingest/SKILL.md       # /cairn:ingest skill
+└── skills/
+    ├── setup/SKILL.md           # /cairn:setup skill (Vault 부트스트랩)
+    └── ingest/SKILL.md          # /cairn:ingest skill (후보 흡수)
 ```
 
 코어 6 모듈: `cairn_root`(경로·frontmatter·hash) · `cairn_ingest`(흡수) ·
@@ -63,10 +66,10 @@ CLI(headless)로도 동일:
 ```bash
 claude plugin marketplace add ~/projects/cairn
 claude plugin install cairn@cairn
-claude plugin details cairn@cairn   # 설치 검증(Skills 1·Hooks 3 확인)
+claude plugin details cairn@cairn   # 설치 검증(Skills 2·Hooks 3 확인)
 ```
 
-설치하면 `hooks/hooks.json`의 hook 3종이 자동 배선되고 `/cairn:ingest` skill이 등록됩니다.
+설치하면 `hooks/hooks.json`의 hook 3종이 자동 배선되고 `/cairn:setup`·`/cairn:ingest` skill이 등록됩니다.
 (표준 `hooks/hooks.json`은 **자동 로드**되므로 plugin.json에 `hooks` 필드를 두지 **않습니다** —
 중복 선언 시 hook 로드가 실패합니다.) hook은 대화형 세션에서 최초 신뢰(trust) 확인을 받습니다.
 
@@ -79,6 +82,30 @@ hook을 직접 등록하고 스크립트 경로를 절대경로로 지정하세�
 
 > 주의: 이 방법은 `allowManagedHooksOnly` managed 정책의 **차단을 우회하지 못합니다**(user/project
 > hook도 차단됨). 자세한 내용은 아래 "⚠️ managed policy 환경 주의" 참고.
+
+---
+
+## 업데이트
+
+새 버전을 받으려면 marketplace 갱신 후 plugin을 업데이트합니다.
+
+```bash
+/plugin marketplace update cairn   # repo 최신 커밋 당겨오기
+/plugin update cairn@cairn         # 설치본 갱신
+```
+
+CLI(headless):
+
+```bash
+claude plugin marketplace update cairn
+claude plugin update cairn@cairn
+claude plugin details cairn@cairn   # 갱신 확인(Skills 2·Hooks 3)
+```
+
+> 🔴 **캐시 주의**: skill 개명·삭제처럼 **파일 경로가 바뀌는 변경**은 plugin 캐시
+> (`~/.claude/plugins/cache/cairn/...`)에 구버전이 남아 신구가 섞일 수 있습니다. 명령이 옛
+> 이름으로 잡히면 `/plugin uninstall cairn@cairn` 후 재설치하거나 캐시 디렉토리를 지우세요.
+> (예: `/cairn:init` → `/cairn:setup` 개명 시.)
 
 ---
 
@@ -128,14 +155,30 @@ lifecycle hook source로 자동 등록되지 않았기 때문입니다(KC-Fn-70)
 
 ### 운영 fallback — repo-local `.codex/hooks.json`
 
-1. `adapters/codex/hooks.json.example`를 소비자 repo의 `.codex/hooks.json`로 복사합니다.
-2. `<CAIRN_ROOT_ABS>`를 이 Cairn repo의 절대경로로 치환합니다. 예: `/home/mooni/projects/cairn`.
-3. `CAIRN_DIR`은 기본적으로 소비자 repo의 `$(pwd)/.cairn`를 가리킵니다.
-4. 소비자 repo에 `.cairn/cairn.config.json`를 먼저 만듭니다. config가 없으면 hook은 발동해도
-   handoff draft를 만들지 않습니다.
+소비자 repo 루트에서(예시 절대경로는 본인 환경으로 치환):
 
-이 방식은 `${PLUGIN_ROOT}`에 의존하지 않습니다. hook script 내부는 `$0` 기준으로 `../core`를 찾아
-`CAIRN_CORE` 없이 동작합니다.
+```bash
+# 1) 어댑터 템플릿을 소비자 repo의 .codex/hooks.json로 복사
+mkdir -p .codex
+cp <CAIRN_ROOT_ABS>/adapters/codex/hooks.json.example .codex/hooks.json
+
+# 2) <CAIRN_ROOT_ABS> 자리표시자를 이 Cairn repo의 절대경로로 치환
+#    (예: /home/mooni/projects/cairn) — sed 또는 에디터로
+sed -i "s#<CAIRN_ROOT_ABS>#$HOME/projects/cairn#g" .codex/hooks.json
+
+# 3) Vault config 생성 (없으면 hook이 발동해도 handoff draft를 안 만듦)
+#    Claude Code 쪽에서 /cairn:setup으로 만들어 둔 .cairn/를 공유하거나, 수동 작성
+```
+
+- `CAIRN_DIR`은 기본적으로 소비자 repo의 `$(pwd)/.cairn`를 가리킵니다(override 가능).
+- 이 방식은 `${PLUGIN_ROOT}`에 의존하지 않습니다. hook script 내부는 `$0` 기준으로 `../core`를
+  찾아 `CAIRN_CORE` 없이 동작합니다.
+- 설치 뒤 Codex에서 `/hooks` review 또는 `~/.codex/config.toml`의 `[hooks.state]` trust 기록으로
+  hook 등록을 확인합니다.
+
+> 🟡 **Codex 실측 범위**: 위 어댑터 계약·경로는 Gate D-1 실측(KC-Fn-68/69/70) 확정 산출물
+> 기반입니다. 다만 **본 설치 절차 자체의 라이브 검증은 Codex 세션에서 수행**해야 정확합니다
+> (D-KC-09 경계: Codex 어댑터는 Codex에서 별도 진행). Claude Code 환경에서는 검증 불가.
 
 ### Codex plugin 설치 — hook 없음
 

@@ -51,7 +51,7 @@ cairn/
 
 ```bash
 # 1) 이 repo를 marketplace로 추가 (.claude-plugin/marketplace.json 동봉됨)
-/plugin marketplace add <이 repo 경로 또는 git URL>
+/plugin marketplace add https://github.com/moonisi/cairn.git
 
 # 2) cairn 설치 — plugin@marketplace 형식
 /plugin install cairn@cairn

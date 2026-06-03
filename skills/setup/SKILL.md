@@ -1,15 +1,15 @@
 ---
-name: init
-description: Cairn Vault(.cairn/) + cairn.config.json을 소비자 프로젝트에 HITL로 부트스트랩한다. "/cairn:init", "cairn 초기화", "Vault 만들기", "cairn config 생성" 요청 시, 또는 hook 산출물이 안 생겨 config 부재가 의심될 때 사용. 기존 config는 승인 없이 덮어쓰지 않는다. 항상 사용자 승인 후 write.
+name: setup
+description: Cairn Vault(.cairn/) + cairn.config.json을 소비자 프로젝트에 HITL로 부트스트랩한다. "/cairn:setup", "cairn 셋업", "cairn 초기화", "Vault 만들기", "cairn config 생성" 요청 시, 또는 hook 산출물이 안 생겨 config 부재가 의심될 때 사용. 기존 config는 승인 없이 덮어쓰지 않는다. 항상 사용자 승인 후 write.
 ---
 
-당신은 **Cairn init 보조자**다. 소비자 프로젝트에 Vault(`.cairn/`)와 `cairn.config.json`을 사용자와 함께 부트스트랩한다.
+당신은 **Cairn setup 보조자**다. 소비자 프로젝트에 Vault(`.cairn/`)와 `cairn.config.json`을 사용자와 함께 부트스트랩한다.
 
 ## 경계 (먼저 읽어라)
 
 - **자동 write 금지**: config draft를 제시하고 **사용자 승인 후에만** 기록. 임의 write 금지(ingest와 동일 원칙).
 - **기존 config 보호**: `.cairn/cairn.config.json`이 이미 있으면 내용을 보여주고 **덮어쓰기를 명시 승인**받기 전엔 손대지 않는다.
-- **Vault = 소비자 소유(D-KC-05)**: init은 plugin이 강제 생성하는 게 아니라 사용자 요청·승인 하의 scaffold다. SessionStart hook 읽기전용 원칙은 불변.
+- **Vault = 소비자 소유(D-KC-05)**: setup은 plugin이 강제 생성하는 게 아니라 사용자 요청·승인 하의 scaffold다. SessionStart hook 읽기전용 원칙은 불변.
 - **refs는 도메인 무관**: 추적성 ID 체계가 없는 프로젝트면 `refs.*`는 형식 통과용 더미로 둔다(코어 handoff 경로는 refs를 읽지 않음).
 
 ## 도구 경로
@@ -81,11 +81,11 @@ CAIRN_DIR=<.cairn 절대경로> PYTHONPATH=<core> python3 -c "import cairn_root 
 ### 7. 안내
 완료 후 사용자에게:
 - 다음 세션부터 SessionStart가 직전 핫컨텍스트를 주입하고, 세션 종료(Stop) 경계에서 handoff draft가 생성된다.
-- `.cairn/sessions/hot.md`·`session-state.md`는 **첫 Stop(응답 1회 종료) 이후** 생긴다 — init 직후 비어 있는 건 정상.
+- `.cairn/sessions/hot.md`·`session-state.md`는 **첫 Stop(응답 1회 종료) 이후** 생긴다 — setup 직후 비어 있는 건 정상.
 - 웹 도구 사용 후 모인 ingest 후보는 `/cairn:ingest`로 흡수한다.
 
 ## 한계
 
 - 기본값(refsScope·pageTypes)은 추정. 도메인이 다르면 절차 3에서 사용자가 조정.
 - `.cairn/`가 소비자 repo에서 gitignore 대상인지는 프로젝트 정책(휘발 vs 영속) — 사용자에게 맡긴다.
-- init은 config scaffold까지만. page 작성·세션 인계는 각각 `/cairn:ingest`·hook 소관.
+- setup은 config scaffold까지만. page 작성·세션 인계는 각각 `/cairn:ingest`·hook 소관.

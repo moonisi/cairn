@@ -16,6 +16,7 @@
 | 세션 시작 (SessionStart) | **핫컨텍스트 주입** | 직전 세션의 `hot.md`·`session-state`를 대화 첫머리에 다시 띄움 → 끊긴 맥락 복원. |
 | 웹 도구 사용 후 (PostToolUse) | **nudge 후보 수집** | `WebFetch`/`WebSearch`로 본 외부 지식을 "흡수 후보"로 조용히 큐에 적재(무음, write 안 함). |
 | 세션 종료 (Stop) | **handoff draft** | 이번 세션 활동을 다음 세션용 `session-state` + `hot.md` 초안으로 정리. |
+| 사용자 호출 | **`/cairn:init` skill** | 소비자 프로젝트에 Vault(`.cairn/`) + `cairn.config.json`을 HITL로 부트스트랩(최초 1회). |
 | 사용자 호출 | **`/cairn:ingest` skill** | 큐에 쌓인 후보를 사용자 승인(HITL) 후 Vault page로 흡수. 자동 write 없음. |
 
 **핵심 원칙**: 자동으로 기록을 *쌓지* 않는다. 자동은 "후보 제안"까지만, 실제 page write는
@@ -94,6 +95,8 @@ override 하세요. Vault 자체(pages·sessions·config)는 plugin에 동봉되
 repo에 markdown+git으로 남습니다.
 
 `.cairn/cairn.config.json`이 page 타입·refs 범위·nudge 파라미터를 정의합니다(소비자가 생성).
+설치 후 **`/cairn:init`**를 한 번 실행하면 이 config를 HITL로 부트스트랩합니다(맨손 작성 불필요).
+config가 없으면 hook은 발동해도 handoff draft를 만들지 않으니, 최초 1회 init이 필요합니다.
 
 ---
 

@@ -167,6 +167,17 @@ python3 hooks/_selftest_codex_transcript_scan.py # Codex scanner 회귀
 
 외부 의존·네트워크 없이 도는 결정적 테스트입니다.
 
+### 라이브 hook 확인 (설치 후)
+
+```bash
+# 새 세션 → 웹 fetch 1회 → 응답 종료(Stop) → 확인
+ls .cairn/sessions/   # hot.md · session-state.md · nudge-metrics.md 출현 = 정상
+```
+
+SessionStart hook은 **읽기 전용**이라 직전 세션 산출물이 없으면 무음입니다. 산출물 생성 주체는
+Stop hook이므로, 첫 세션은 응답을 한 번 끝내기 전까지 `sessions/`가 비어 있는 것이 정상입니다
+(세션을 막 열고 `ls` 하면 비어 있다고 해서 hook 미발동이 아닙니다).
+
 ---
 
 ## 라이선스

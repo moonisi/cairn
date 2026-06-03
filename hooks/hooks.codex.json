@@ -1,0 +1,28 @@
+{
+  "_NOTE": "🟡 초안(placeholder) — Codex plugin-root·project-dir 변수명 미확정. Gate D-1(Codex 환경 실측, D-KC-09) 후 <codex-plugin-root>·<codex-project-dir>를 실제 변수로 치환할 것. 치환 전에는 동작하지 않음.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CAIRN_DIR=\"<codex-project-dir>/.cairn\" CAIRN_SESSION=codex bash \"<codex-plugin-root>/hooks/cairn-sessionstart.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CAIRN_DIR=\"<codex-project-dir>/.cairn\" CAIRN_SESSION=codex bash \"<codex-plugin-root>/hooks/cairn-stop-codex.sh\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}

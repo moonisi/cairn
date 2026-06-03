@@ -1,0 +1,151 @@
+[
+  {
+    "_name": "URL suffix 정규화 (opt-in CAIRN_SCAN_TEXT_URLS)",
+    "_scan_text": true,
+    "objects": [
+      {
+        "payload": {
+          "type": "message",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "참조 https://developers.openai.com/codex/hooks\\n 그리고 https://developers.openai.com/codex/hooks`"
+            }
+          ]
+        }
+      }
+    ],
+    "_expect_refs": ["https://developers.openai.com/codex/hooks"]
+  },
+  {
+    "_name": "plain text URL fallback 기본 OFF (KC-Fn-32)",
+    "objects": [
+      {
+        "payload": {
+          "type": "message",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "본문 URL https://example.invalid/should-not-be-candidate 와 https://example.com/text-url"
+            }
+          ]
+        }
+      }
+    ],
+    "_expect_refs": []
+  },
+  {
+    "_name": "structured action.url suffix 정규화 (기본 ON)",
+    "objects": [
+      {
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://developers.openai.com/codex/hooks\\n`"
+        }
+      }
+    ],
+    "_expect_tools": ["WebFetch"],
+    "_expect_refs": ["https://developers.openai.com/codex/hooks"]
+  },
+  {
+    "_name": "후보 파일 출력 self-echo 제외",
+    "objects": [
+      {
+        "payload": {
+          "type": "function_call_output",
+          "output": "# codex-ingest-candidates\n- ref: https://example.com/echo\n  - note: transcript url"
+        }
+      },
+      {
+        "payload": {
+          "type": "message",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "<hook_prompt>Cairn Codex ingest 후보 1건이 codex-ingest-candidates.md에 기록됐다. https://example.com/hook</hook_prompt>"
+            }
+          ]
+        }
+      }
+    ],
+    "_expect_refs": []
+  },
+  {
+    "_name": "MCP tool payload 별도 관측 fixture",
+    "objects": [
+      {
+        "tool_name": "mcp__playwright__browser_navigate",
+        "tool_input": {
+          "url": "https://developers.openai.com/codex/hooks"
+        },
+        "tool_response": "navigated"
+      }
+    ],
+    "_expect_refs": []
+  },
+  {
+    "_name": "Codex built-in web search action.query",
+    "objects": [
+      {
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "OpenAI Codex hooks documentation",
+          "queries": ["OpenAI Codex hooks documentation"]
+        }
+      }
+    ],
+    "_expect_tools": ["WebSearch"],
+    "_expect_refs": ["OpenAI Codex hooks documentation"]
+  },
+  {
+    "_name": "Codex built-in web open_page action.url",
+    "objects": [
+      {
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://developers.openai.com/codex/hooks"
+        }
+      }
+    ],
+    "_expect_tools": ["WebFetch"],
+    "_expect_refs": ["https://developers.openai.com/codex/hooks"]
+  },
+  {
+    "_name": "Codex event_msg web_search_end payload action",
+    "objects": [
+      {
+        "type": "event_msg",
+        "payload": {
+          "type": "web_search_end",
+          "query": "ignored top-level field",
+          "action": {
+            "type": "search",
+            "queries": ["codex transcript parser fixture"]
+          }
+        }
+      }
+    ],
+    "_expect_tools": ["WebSearch"],
+    "_expect_refs": ["codex transcript parser fixture"]
+  },
+  {
+    "_name": "Codex built-in web action missing fields",
+    "objects": [
+      {
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      }
+    ],
+    "_expect_tools": [],
+    "_expect_refs": []
+  }
+]

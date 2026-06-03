@@ -1,0 +1,11 @@
+# Python 빌드 산출물
+__pycache__/
+*.pyc
+*.pyo
+
+# 소비자 Vault — plugin 비동봉(D-KC-05). 실수 커밋 방어.
+.cairn/
+
+# OS·에디터 잡파일
+.DS_Store
+*.swp

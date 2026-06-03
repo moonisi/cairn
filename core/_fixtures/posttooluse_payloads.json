@@ -1,0 +1,42 @@
+[
+  {
+    "_note": "WebSearch PostToolUse payload — tool_input.query 실측 확정(2026-05-31, transcript JSONL). envelope = 공식문서 확정 공통필드.",
+    "session_id": "fixture-session-001",
+    "transcript_path": "/home/mooni/.claude/projects/x/fixture.jsonl",
+    "cwd": "/home/mooni/projects/llm-wiki-plugin",
+    "permission_mode": "default",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "WebSearch",
+    "tool_input": { "query": "BM25 ranking zero-dep python implementation" },
+    "tool_response": "Web search results for query: \"BM25 ranking zero-dep python implementation\"\n\nLinks: [{\"title\":\"BM25 explained\",\"url\":\"https://example.com/bm25\"}]",
+    "_expect": { "ref": "BM25 ranking zero-dep python implementation", "locator_raw": "websearch:BM25 ranking zero-dep python implementation" }
+  },
+  {
+    "_note": "WebFetch PostToolUse payload — tool_input.{url,prompt} 실측 확정. redact[query,hash,userinfo] = URL 구성요소 제거 대상.",
+    "session_id": "fixture-session-001",
+    "transcript_path": "/home/mooni/.claude/projects/x/fixture.jsonl",
+    "cwd": "/home/mooni/projects/llm-wiki-plugin",
+    "permission_mode": "default",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "WebFetch",
+    "tool_input": {
+      "url": "https://user:pw@example.com/article?utm_source=x&q=secret#section-2",
+      "prompt": "Return the full content of this page."
+    },
+    "tool_response": "# Article Title\n\nBody content here.",
+    "_expect": {
+      "ref": "example.com/article",
+      "locator_raw": "https://example.com/article",
+      "redacted_out": ["user:pw@", "?utm_source=x&q=secret", "#section-2"]
+    }
+  },
+  {
+    "_note": "비트리거 도구 — collect 무시(triggers 밖). extractor가 None 반환해야.",
+    "session_id": "fixture-session-001",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": { "command": "ls -la" },
+    "tool_response": "file1\nfile2",
+    "_expect": null
+  }
+]

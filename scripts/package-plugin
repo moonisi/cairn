@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Cairn plugin 산출물을 런타임별 표준 hook 위치로 패키징한다.
+set -euo pipefail
+
+usage() {
+  printf 'usage: %s <claude|codex> <output-dir>\n' "$0" >&2
+}
+
+if [ "$#" -ne 2 ]; then
+  usage
+  exit 2
+fi
+
+runtime="$1"
+out_dir="$2"
+case "$runtime" in
+  claude|codex) ;;
+  *) usage; exit 2 ;;
+esac
+
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+repo_root="$(CDPATH= cd -- "$script_dir/.." && pwd)"
+hook_source="$repo_root/hooks/$runtime/hooks.json"
+
+if [ ! -f "$hook_source" ]; then
+  printf 'missing runtime hook source: %s\n' "$hook_source" >&2
+  exit 1
+fi
+
+if [ -e "$out_dir" ]; then
+  printf 'output directory already exists: %s\n' "$out_dir" >&2
+  exit 1
+fi
+
+mkdir -p "$out_dir"
+(
+  cd "$repo_root"
+  tar --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' -cf - .
+) | (
+  cd "$out_dir"
+  tar -xf -
+)
+
+cp "$hook_source" "$out_dir/hooks/hooks.json"
+printf 'packaged %s plugin: %s\n' "$runtime" "$out_dir"

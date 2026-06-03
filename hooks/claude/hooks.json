@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CAIRN_DIR=\"${CLAUDE_PROJECT_DIR}/.cairn\" CAIRN_SESSION=cc bash \"${CLAUDE_PLUGIN_ROOT}/hooks/cairn-sessionstart.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "WebFetch|WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CAIRN_DIR=\"${CLAUDE_PROJECT_DIR}/.cairn\" CAIRN_SESSION=cc bash \"${CLAUDE_PLUGIN_ROOT}/hooks/cairn-posttooluse.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CAIRN_DIR=\"${CLAUDE_PROJECT_DIR}/.cairn\" CAIRN_SESSION=cc bash \"${CLAUDE_PLUGIN_ROOT}/hooks/cairn-stop.sh\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -30,8 +30,10 @@ cairn/
 ├── .claude-plugin/plugin.json   # Claude 매니페스트
 ├── .codex-plugin/plugin.json    # Codex 매니페스트 (🟡 초안 — 아래 "Codex" 참고)
 ├── hooks/
-│   ├── hooks.json               # Claude hook 배선 (SessionStart/PostToolUse/Stop)
-│   ├── hooks.codex.json         # Codex hook 배선 (🟡 초안)
+│   ├── hooks.json               # 표준 hook 위치(원본 repo는 Claude 직접 설치용)
+│   ├── hooks.codex.json         # Codex legacy 배선 파일(PLUGIN_ROOT 기반)
+│   ├── claude/hooks.json        # Claude 배선 source of truth
+│   ├── codex/hooks.json         # Codex 배선 source of truth
 │   └── *.sh, *.py               # hook 스크립트 (런타임 공유, 무수정)
 ├── core/                        # 런타임·도메인 무관 코어 6 모듈 + self-test
 │   └── *.py                     # zero-dep (Python stdlib만)
@@ -113,16 +115,32 @@ plugin hook은 차단**됩니다.
 
 ---
 
-## Codex (🟡 초안)
+## Codex (Gate D-1 B안)
 
-`.codex-plugin/plugin.json`·`hooks/hooks.codex.json`은 **placeholder**입니다.
 Codex는 hook 표면이 다릅니다 — SessionStart·Stop 2종만 쓰고 PostToolUse 대신 Stop 시점
 transcript scan으로 웹 후보를 잡습니다(`cairn-stop-codex.sh`). hook 스크립트 본체는 Claude와
-**공유**하되 배선 파일만 분리했습니다(KC-Fn-63).
+**공유**하되 배선 파일은 런타임별로 분리합니다.
 
-단, Codex의 plugin-root·project-dir 변수명이 미확정(`<codex-plugin-root>` 등 placeholder).
-실제 변수 치환은 Codex 환경 실측(Gate D-1, D-KC-09) 후입니다. **치환 전에는 Codex 배선이
-동작하지 않습니다.**
+- `hooks/claude/hooks.json`: Claude 배선 source of truth.
+- `hooks/codex/hooks.json`: Codex 배선 source of truth(`PLUGIN_ROOT` + session cwd 기반).
+- `hooks/hooks.json`: 설치/패키징 표준 위치. 원본 repo에서는 Claude 직접 설치 호환을 위해 Claude 배선을 유지합니다.
+
+Codex plugin validation은 `.codex-plugin/plugin.json`의 `hooks` 필드를 거부하므로, Codex 산출물은
+manifest override 없이 기본 `hooks/hooks.json` 위치를 사용합니다. 런타임별 산출물은 zero-dep
+패키징 스크립트로 만듭니다.
+
+```bash
+# Codex 산출물
+scripts/package-plugin codex /tmp/cairn-codex-plugin
+
+# Claude 산출물
+scripts/package-plugin claude /tmp/cairn-claude-plugin
+```
+
+Codex local marketplace 실측에서는 validator 통과와 plugin add/cache 설치까지 확인했습니다. 다만
+`codex exec --dangerously-bypass-hook-trust`에서 기본 `hooks/hooks.json` lifecycle 발동 증거는 아직
+확보하지 못했습니다. Codex에서 plugin hook이 계속 미발동하면 fallback은 repo-local `.codex/hooks.json`
+adapter(C안)입니다.
 
 ---
 

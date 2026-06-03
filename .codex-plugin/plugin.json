@@ -2,8 +2,28 @@
   "name": "cairn",
   "version": "0.1.0",
   "description": "런타임·도메인 무관 연속성/지식축적 코어. SessionStart 핫컨텍스트 주입 + 경계 handoff draft + nudge 기반 ingest 후보. zero-dep markdown+git.",
-  "author": { "name": "moonisi" },
+  "author": {
+    "name": "moonisi"
+  },
   "license": "MIT",
-  "keywords": ["continuity", "knowledge", "hooks", "zero-dep"],
-  "hooks": "./hooks/hooks.codex.json"
+  "keywords": [
+    "continuity",
+    "knowledge",
+    "hooks",
+    "zero-dep"
+  ],
+  "skills": "skills",
+  "interface": {
+    "displayName": "Cairn",
+    "shortDescription": "연속성·지식축적 코어 어댑터",
+    "longDescription": "Cairn keeps local markdown continuity and reviewed knowledge accumulation available across Codex sessions.",
+    "developerName": "moonisi",
+    "category": "Productivity",
+    "capabilities": [
+      "session-continuity",
+      "knowledge-ingest",
+      "hook-adapter"
+    ],
+    "defaultPrompt": "Use Cairn to inspect pending continuity context or reviewed ingest candidates when the user asks for Cairn state."
+  }
 }

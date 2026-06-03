@@ -4,6 +4,5 @@
   "description": "런타임·도메인 무관 연속성/지식축적 코어. SessionStart 핫컨텍스트 주입 + 경계 handoff draft + nudge 기반 ingest 후보. zero-dep markdown+git.",
   "author": { "name": "moonisi" },
   "license": "MIT",
-  "keywords": ["continuity", "knowledge", "hooks", "zero-dep"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["continuity", "knowledge", "hooks", "zero-dep"]
 }

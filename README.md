@@ -49,15 +49,26 @@ cairn/
 ### 방법 A — plugin marketplace (권장)
 
 ```bash
-# 1) 이 repo를 marketplace로 추가
+# 1) 이 repo를 marketplace로 추가 (.claude-plugin/marketplace.json 동봉됨)
 /plugin marketplace add <이 repo 경로 또는 git URL>
 
-# 2) cairn 설치
-/plugin install cairn
+# 2) cairn 설치 — plugin@marketplace 형식
+/plugin install cairn@cairn
+```
+
+CLI(headless)로도 동일:
+
+```bash
+claude plugin marketplace add ~/projects/cairn
+claude plugin install cairn@cairn
+claude plugin details cairn@cairn   # 설치 검증(Skills 1·Hooks 3 확인)
 ```
 
 설치하면 `hooks/hooks.json`의 hook 3종이 자동 배선되고 `/cairn:ingest` skill이 등록됩니다.
-hook은 최초 1회 신뢰(trust) 확인을 받습니다.
+(표준 `hooks/hooks.json`은 **자동 로드**되므로 plugin.json에 `hooks` 필드를 두지 **않습니다** —
+중복 선언 시 hook 로드가 실패합니다.) hook은 대화형 세션에서 최초 신뢰(trust) 확인을 받습니다.
+
+> 단일 plugin만 빠르게 시험하려면 marketplace 없이: `claude --plugin-dir ~/projects/cairn`.
 
 ### 방법 B — standalone (`.claude/` 직접 배선)
 

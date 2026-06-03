@@ -72,8 +72,11 @@ claude plugin details cairn@cairn   # 설치 검증(Skills 1·Hooks 3 확인)
 
 ### 방법 B — standalone (`.claude/` 직접 배선)
 
-managed policy 환경 등 plugin hook이 막힌 경우의 fallback. 프로젝트 `.claude/settings.json`에
+plugin 시스템 대신 hook을 직접 배선하려는 경우의 대안. 프로젝트 `.claude/settings.json`에
 hook을 직접 등록하고 스크립트 경로를 절대경로로 지정하세요. (자세한 양식은 [안내서.md](안내서.md))
+
+> 주의: 이 방법은 `allowManagedHooksOnly` managed 정책의 **차단을 우회하지 못합니다**(user/project
+> hook도 차단됨). 자세한 내용은 아래 "⚠️ managed policy 환경 주의" 참고.
 
 ---
 
@@ -95,13 +98,18 @@ repo에 markdown+git으로 남습니다.
 
 ## ⚠️ managed policy 환경 주의
 
-🔴 **확인 불가 (실측 대기)**: 공식문서(2026-06-02 기준)에 `allowManagedHooksOnly`라는
-*Managed-Only Setting*이 존재합니다. 동작은 미문서화이나, 엔터프라이즈 관리자가 이를 켜면
-**plugin이 제공하는 hook이 차단될 수 있습니다.** (`disableAllHooks`는 user/project/plugin
-hook을 동일하게 끕니다 — plugin만 차등하지 않음.)
+🔵 공식문서(`permissions.md` §Managed-only settings, 2026-06-02): 엔터프라이즈 관리자가
+`allowManagedHooksOnly: true`를 설정하면 **managed hook · SDK hook · managed settings의
+`enabledPlugins`에 force-enable된 plugin hook만** 로드되고, **user · project · 그 외 모든
+plugin hook은 차단**됩니다.
 
-→ managed policy 하에서 plugin hook이 막히면 위 **방법 B(standalone `.claude/`)**로 fallback
-하세요. 실 환경 실측 전까지는 미확정 사항입니다.
+→ 이 정책이 켜진 환경에서 Cairn hook을 쓰려면 **조직 관리자가 managed settings의
+`enabledPlugins`에 `cairn@cairn`를 force-enable** 해야 합니다. **유일한 방법입니다.**
+
+> ⚠️ standalone `.claude/`(방법 B) **fallback은 이 경우 무효**입니다 — user/project hook도
+> 똑같이 차단되기 때문입니다. `allowManagedHooksOnly`가 *꺼진* 일반 환경에서는 plugin hook이
+> 정상 동작합니다(실 설치로 실증). 방법 B는 plugin 시스템을 쓰지 않으려는 경우의 대안일 뿐,
+> managed 차단 우회 수단이 아닙니다.
 
 ---
 

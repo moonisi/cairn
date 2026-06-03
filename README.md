@@ -1,231 +1,237 @@
 # Cairn
 
-런타임·도메인 무관 **연속성/지식축적 코어**. 세션이 끊겨도 맥락이 이어지고, 작업 중 본
-외부 지식이 흩어지지 않게 모아두는 plugin. 저장소는 **markdown + git뿐**(zero 외부 의존).
+A runtime- and domain-agnostic **continuity & knowledge-accretion core**. Cairn keeps your
+context alive across broken sessions and gathers the external knowledge you hit mid-task so it
+doesn't scatter. The entire store is **just markdown + git** — zero external dependencies.
 
-> 🌐 **English**: [README.en.md](README.en.md) · [Getting Started](GETTING-STARTED.en.md)
-> 처음이라면 [안내서.md](안내서.md)부터 읽으세요 — 개념과 설치를 단계별로 풀어 씁니다.
+> 🌐 **한국어**: [README.md](README.md) · [안내서.md](안내서.md) (beginner guide)
+> New here? Start with [GETTING-STARTED.en.md](GETTING-STARTED.en.md) — concepts and install, step by step.
 
 ---
 
-## 무엇을 하나
+## What it does
 
-세 가지 자동 동작 + 한 가지 수동 동작으로 구성됩니다.
+Three automatic actions plus one manual action.
 
-| 시점 | 동작 | 무엇을 |
+| When | Action | What |
 |---|---|---|
-| 세션 시작 (SessionStart) | **핫컨텍스트 주입** | 직전 세션의 `hot.md`·`session-state`를 대화 첫머리에 다시 띄움 → 끊긴 맥락 복원. |
-| 웹 도구 사용 후 (PostToolUse) | **nudge 후보 수집** | `WebFetch`/`WebSearch`로 본 외부 지식을 "흡수 후보"로 조용히 큐에 적재(무음, write 안 함). |
-| 세션 종료 (Stop) | **handoff draft** | 이번 세션 활동을 다음 세션용 `session-state` + `hot.md` 초안으로 정리. |
-| 사용자 호출 | **`/cairn:setup` skill** | 소비자 프로젝트에 Vault(`.cairn/`) + `cairn.config.json`을 HITL로 부트스트랩(최초 1회). |
-| 사용자 호출 | **`/cairn:ingest` skill** | 큐에 쌓인 후보를 사용자 승인(HITL) 후 Vault page로 흡수. 자동 write 없음. |
+| Session start (SessionStart) | **Hot-context injection** | Re-surfaces the previous session's `hot.md` / `session-state` at the top of the conversation → broken context restored. |
+| After a web tool (PostToolUse) | **Nudge candidate collection** | External knowledge seen via `WebFetch` / `WebSearch` is quietly queued as an "ingest candidate" (silent — no write). |
+| Session end (Stop) | **Handoff draft** | This session's activity is drafted into the next session's `session-state` + `hot.md`. |
+| User-invoked | **`/cairn:setup` skill** | Bootstraps the Vault (`.cairn/`) + `cairn.config.json` in a consumer project (one-time, HITL). |
+| User-invoked | **`/cairn:ingest` skill** | Absorbs queued candidates into Vault pages after your approval (HITL). Never writes automatically. |
 
-**핵심 원칙**: 자동으로 기록을 *쌓지* 않는다. 자동은 "후보 제안"까지만, 실제 page write는
-항상 사람이 승인. (이른바 자동 영구 ingest는 의도적으로 제외.)
+**Core principle**: Cairn never *accumulates* records automatically. Automation goes only as far
+as *proposing candidates*; the actual page write always requires a human approval. (So-called
+automatic permanent ingest is deliberately excluded.)
 
 ---
 
-## 구조
+## Structure
 
 ```
 cairn/
-├── .claude-plugin/plugin.json   # Claude 매니페스트(hooks 필드 없음)
-├── .codex-plugin/plugin.json    # Codex 매니페스트(skill·문서·보조 산출물, hooks 필드 없음)
-├── adapters/codex/hooks.json.example # Codex repo-local .codex/hooks.json fallback 템플릿
+├── .claude-plugin/plugin.json   # Claude manifest (no hooks field)
+├── .codex-plugin/plugin.json    # Codex manifest (skills/docs/aux artifacts, no hooks field)
+├── adapters/codex/hooks.json.example # Codex repo-local .codex/hooks.json fallback template
 ├── hooks/
-│   ├── hooks.json               # Claude 직접 설치 호환 copy
-│   ├── claude/hooks.json        # Claude 배선 source of truth
-│   └── *.sh, *.py               # hook 스크립트 (런타임 공유, 무수정)
-├── core/                        # 런타임·도메인 무관 코어 6 모듈 + self-test
-│   └── *.py                     # zero-dep (Python stdlib만)
+│   ├── hooks.json               # Claude direct-install compatible copy
+│   ├── claude/hooks.json        # Claude wiring source of truth
+│   └── *.sh, *.py               # hook scripts (shared across runtimes, unmodified)
+├── core/                        # runtime/domain-agnostic core: 6 modules + self-test
+│   └── *.py                     # zero-dep (Python stdlib only)
 └── skills/
-    ├── setup/SKILL.md           # /cairn:setup skill (Vault 부트스트랩)
-    └── ingest/SKILL.md          # /cairn:ingest skill (후보 흡수)
+    ├── setup/SKILL.md           # /cairn:setup skill (Vault bootstrap)
+    └── ingest/SKILL.md          # /cairn:ingest skill (candidate absorption)
 ```
 
-코어 6 모듈: `cairn_root`(경로·frontmatter·hash) · `cairn_ingest`(흡수) ·
-`cairn_nudge`(후보 큐) · `cairn_query`(검색) · `cairn_lint`(린트) · `cairn_handoff`(세션 인계).
-전부 외부 패키지 없이 Python 표준 라이브러리만 씀.
+The 6 core modules: `cairn_root` (paths / frontmatter / hash) · `cairn_ingest` (absorption) ·
+`cairn_nudge` (candidate queue) · `cairn_query` (search) · `cairn_lint` (lint) ·
+`cairn_handoff` (session handoff). All run on the Python standard library alone — no external packages.
 
 ---
 
-## 설치 (Claude Code)
+## Install (Claude Code)
 
-### 방법 A — plugin marketplace (권장)
+### Option A — plugin marketplace (recommended)
 
 ```bash
-# 1) 이 repo를 marketplace로 추가 (.claude-plugin/marketplace.json 동봉됨)
+# 1) Add this repo as a marketplace (.claude-plugin/marketplace.json is bundled)
 /plugin marketplace add https://github.com/moonisi/cairn.git
 
-# 2) cairn 설치 — plugin@marketplace 형식
+# 2) Install cairn — plugin@marketplace form
 /plugin install cairn@cairn
 ```
 
-CLI(headless)로도 동일:
+Same via CLI (headless):
 
 ```bash
 claude plugin marketplace add ~/projects/cairn
 claude plugin install cairn@cairn
-claude plugin details cairn@cairn   # 설치 검증(Skills 2·Hooks 3 확인)
+claude plugin details cairn@cairn   # verify install (Skills 2 · Hooks 3)
 ```
 
-설치하면 `hooks/hooks.json`의 hook 3종이 자동 배선되고 `/cairn:setup`·`/cairn:ingest` skill이 등록됩니다.
-(표준 `hooks/hooks.json`은 **자동 로드**되므로 plugin.json에 `hooks` 필드를 두지 **않습니다** —
-중복 선언 시 hook 로드가 실패합니다.) hook은 대화형 세션에서 최초 신뢰(trust) 확인을 받습니다.
+On install, the 3 hooks in `hooks/hooks.json` are wired automatically and the `/cairn:setup` and
+`/cairn:ingest` skills are registered. (The standard `hooks/hooks.json` is **auto-loaded**, so the
+plugin.json carries **no** `hooks` field — declaring it twice breaks hook loading.) Hooks ask for a
+one-time trust confirmation in an interactive session.
 
-> 단일 plugin만 빠르게 시험하려면 marketplace 없이: `claude --plugin-dir ~/projects/cairn`.
+> To quickly try a single plugin without a marketplace: `claude --plugin-dir ~/projects/cairn`.
 
-### 방법 B — standalone (`.claude/` 직접 배선)
+### Option B — standalone (`.claude/` direct wiring)
 
-plugin 시스템 대신 hook을 직접 배선하려는 경우의 대안. 프로젝트 `.claude/settings.json`에
-hook을 직접 등록하고 스크립트 경로를 절대경로로 지정하세요. (자세한 양식은 [안내서.md](안내서.md))
+An alternative when you'd rather wire hooks yourself instead of using the plugin system. Register
+the hooks directly in your project's `.claude/settings.json` and point the script paths at absolute
+locations. (Full format in [GETTING-STARTED.en.md](GETTING-STARTED.en.md).)
 
-> 주의: 이 방법은 `allowManagedHooksOnly` managed 정책의 **차단을 우회하지 못합니다**(user/project
-> hook도 차단됨). 자세한 내용은 아래 "⚠️ managed policy 환경 주의" 참고.
+> Note: this does **not** bypass the `allowManagedHooksOnly` managed policy (user/project hooks are
+> blocked too). See "⚠️ Managed policy environments" below.
 
 ---
 
-## 업데이트
+## Updating
 
-새 버전을 받으려면 marketplace 갱신 후 plugin을 업데이트합니다.
+To pull a new version, refresh the marketplace then update the plugin.
 
 ```bash
-/plugin marketplace update cairn   # repo 최신 커밋 당겨오기
-/plugin update cairn@cairn         # 설치본 갱신
+/plugin marketplace update cairn   # pull the repo's latest commit
+/plugin update cairn@cairn         # refresh the installed copy
 ```
 
-CLI(headless):
+CLI (headless):
 
 ```bash
 claude plugin marketplace update cairn
 claude plugin update cairn@cairn
-claude plugin details cairn@cairn   # 갱신 확인(Skills 2·Hooks 3)
+claude plugin details cairn@cairn   # confirm update (Skills 2 · Hooks 3)
 ```
 
-> 🔴 **캐시 주의**: skill 개명·삭제처럼 **파일 경로가 바뀌는 변경**은 plugin 캐시
-> (`~/.claude/plugins/cache/cairn/...`)에 구버전이 남아 신구가 섞일 수 있습니다. 명령이 옛
-> 이름으로 잡히면 `/plugin uninstall cairn@cairn` 후 재설치하거나 캐시 디렉토리를 지우세요.
-> (예: `/cairn:init` → `/cairn:setup` 개명 시.)
+> 🔴 **Cache caveat**: changes that move file paths — like renaming or deleting a skill — can leave a
+> stale copy in the plugin cache (`~/.claude/plugins/cache/cairn/...`), mixing old and new. If a
+> command still resolves to the old name, run `/plugin uninstall cairn@cairn` and reinstall, or
+> delete the cache directory. (E.g. the `/cairn:init` → `/cairn:setup` rename.)
 
 ---
 
-## Vault 위치 — `CAIRN_DIR`
+## Vault location — `CAIRN_DIR`
 
-기록물(Vault)은 **plugin이 아니라 소비자 프로젝트가 소유**합니다(D-KC-05). 기본값:
+The store (Vault) is **owned by the consumer project, not the plugin** (D-KC-05). Default:
 
 ```
 CAIRN_DIR = ${CLAUDE_PROJECT_DIR}/.cairn
 ```
 
-즉 프로젝트 루트의 `.cairn/` 폴더가 Vault입니다. 다른 위치를 쓰려면 hook 배선의 `CAIRN_DIR`을
-override 하세요. Vault 자체(pages·sessions·config)는 plugin에 동봉되지 않으며, 소비자
-repo에 markdown+git으로 남습니다.
+So the `.cairn/` folder at the project root is the Vault. To use another location, override
+`CAIRN_DIR` in the hook wiring. The Vault itself (pages / sessions / config) is not bundled with the
+plugin — it lives in the consumer repo as markdown + git.
 
-`.cairn/cairn.config.json`이 page 타입·refs 범위·nudge 파라미터를 정의합니다(소비자가 생성).
-설치 후 **`/cairn:setup`**를 한 번 실행하면 이 config를 HITL로 부트스트랩합니다(맨손 작성 불필요).
-config가 없으면 hook은 발동해도 handoff draft를 만들지 않으니, 최초 1회 setup이 필요합니다.
+`.cairn/cairn.config.json` defines page types, refs scope, and nudge parameters (created by the
+consumer). After install, run **`/cairn:setup`** once to bootstrap this config via HITL (no
+hand-writing needed). Without a config, hooks fire but produce no handoff draft, so the one-time
+setup is required.
 
 ---
 
-## ⚠️ managed policy 환경 주의
+## ⚠️ Managed policy environments
 
-🔵 공식문서(`permissions.md` §Managed-only settings, 2026-06-02): 엔터프라이즈 관리자가
-`allowManagedHooksOnly: true`를 설정하면 **managed hook · SDK hook · managed settings의
-`enabledPlugins`에 force-enable된 plugin hook만** 로드되고, **user · project · 그 외 모든
-plugin hook은 차단**됩니다.
+🔵 Official docs (`permissions.md` §Managed-only settings, 2026-06-02): if an enterprise admin sets
+`allowManagedHooksOnly: true`, then **only managed hooks · SDK hooks · plugin hooks force-enabled via
+managed settings' `enabledPlugins`** load — **user, project, and all other plugin hooks are blocked**.
 
-→ 이 정책이 켜진 환경에서 Cairn hook을 쓰려면 **조직 관리자가 managed settings의
-`enabledPlugins`에 `cairn@cairn`를 force-enable** 해야 합니다. **유일한 방법입니다.**
+→ To use Cairn hooks in such an environment, **the org admin must force-enable `cairn@cairn` in the
+managed settings' `enabledPlugins`**. That is the **only** way.
 
-> ⚠️ standalone `.claude/`(방법 B) **fallback은 이 경우 무효**입니다 — user/project hook도
-> 똑같이 차단되기 때문입니다. `allowManagedHooksOnly`가 *꺼진* 일반 환경에서는 plugin hook이
-> 정상 동작합니다(실 설치로 실증). 방법 B는 plugin 시스템을 쓰지 않으려는 경우의 대안일 뿐,
-> managed 차단 우회 수단이 아닙니다.
+> ⚠️ The standalone `.claude/` route (Option B) is **void in this case** — user/project hooks are
+> blocked the same way. When `allowManagedHooksOnly` is *off* (a normal environment), plugin hooks
+> work fine (proven on a live install). Option B is only an alternative for those not using the
+> plugin system — not a way around the managed block.
 
 ---
 
 ## Codex
 
-🔵 현재 운영 기본값은 **C안 fallback**입니다.
+🔵 The current operating default is the **Option-C fallback**.
 
-Codex plugin은 skill·문서·보조 산출물로만 설치하고, hook은 소비자 repo의
-repo-local `.codex/hooks.json` adapter로 별도 배치합니다. 이유는 Gate D-1 실측에서 Codex plugin이
-validation·install·cache 복사까지는 통과했지만, 기본 `hooks/hooks.json`가 `codex exec` runtime
-lifecycle hook source로 자동 등록되지 않았기 때문입니다(KC-Fn-70).
+The Codex plugin installs skills/docs/aux artifacts only; hooks are placed separately as a
+repo-local `.codex/hooks.json` adapter in the consumer repo. The reason: in Gate D-1 testing the
+Codex plugin passed validation/install/cache-copy, but the default `hooks/hooks.json` was not
+auto-registered as a `codex exec` runtime lifecycle hook source (KC-Fn-70).
 
-### 운영 fallback — repo-local `.codex/hooks.json`
+### Operating fallback — repo-local `.codex/hooks.json`
 
-소비자 repo 루트에서(예시 절대경로는 본인 환경으로 치환):
+From the consumer repo root (substitute the example absolute path for your own environment):
 
 ```bash
-# 1) 어댑터 템플릿을 소비자 repo의 .codex/hooks.json로 복사
+# 1) Copy the adapter template to the consumer repo's .codex/hooks.json
 mkdir -p .codex
 cp <CAIRN_ROOT_ABS>/adapters/codex/hooks.json.example .codex/hooks.json
 
-# 2) <CAIRN_ROOT_ABS> 자리표시자를 이 Cairn repo의 절대경로로 치환
-#    (예: /home/mooni/projects/cairn) — sed 또는 에디터로
+# 2) Replace the <CAIRN_ROOT_ABS> placeholder with this Cairn repo's absolute path
+#    (e.g. /home/mooni/projects/cairn) — via sed or an editor
 sed -i "s#<CAIRN_ROOT_ABS>#$HOME/projects/cairn#g" .codex/hooks.json
 
-# 3) Vault config 생성 (없으면 hook이 발동해도 handoff draft를 안 만듦)
-#    Claude Code 쪽에서 /cairn:setup으로 만들어 둔 .cairn/를 공유하거나, 수동 작성
+# 3) Create the Vault config (without it, hooks fire but produce no handoff draft).
+#    Share the .cairn/ you bootstrapped via /cairn:setup on the Claude Code side, or write it manually.
 ```
 
-- `CAIRN_DIR`은 기본적으로 소비자 repo의 `$(pwd)/.cairn`를 가리킵니다(override 가능).
-- 이 방식은 `${PLUGIN_ROOT}`에 의존하지 않습니다. hook script 내부는 `$0` 기준으로 `../core`를
-  찾아 `CAIRN_CORE` 없이 동작합니다.
-- 설치 뒤 Codex에서 `/hooks` review 또는 `~/.codex/config.toml`의 `[hooks.state]` trust 기록으로
-  hook 등록을 확인합니다.
+- `CAIRN_DIR` defaults to the consumer repo's `$(pwd)/.cairn` (overridable).
+- This route does not depend on `${PLUGIN_ROOT}`. The hook scripts locate `../core` relative to `$0`,
+  so they work without `CAIRN_CORE`.
+- After install, confirm hook registration in Codex via `/hooks` review or the `[hooks.state]` trust
+  record in `~/.codex/config.toml`.
 
-> 🟡 **Codex 실측 범위**: 위 어댑터 계약·경로는 Gate D-1 실측(KC-Fn-68/69/70) 확정 산출물
-> 기반입니다. 다만 **본 설치 절차 자체의 라이브 검증은 Codex 세션에서 수행**해야 정확합니다
-> (D-KC-09 경계: Codex 어댑터는 Codex에서 별도 진행). Claude Code 환경에서는 검증 불가.
+> 🟡 **Codex verification scope**: the adapter contract/paths above are based on Gate D-1 confirmed
+> artifacts (KC-Fn-68/69/70). However, **live verification of this install procedure itself must be
+> done in a Codex session** to be accurate (per the D-KC-09 boundary: the Codex adapter is developed
+> separately in Codex). It cannot be verified from a Claude Code environment.
 
-### Codex plugin 설치 — hook 없음
+### Codex plugin install — no hooks
 
-`.codex-plugin/plugin.json`에는 `hooks` 필드가 없습니다. Codex plugin은 `/cairn:ingest` skill과
-문서·보조 산출물을 배포하는 단위이며, SessionStart/Stop hook을 설치하거나 trust 항목을 만들지
-않습니다. 이 분리는 KC-Fn-68/69/70을 회피하기 위한 C안 계약입니다.
+`.codex-plugin/plugin.json` has no `hooks` field. The Codex plugin is the unit that ships the
+`/cairn:ingest` skill plus docs/aux artifacts; it does not install SessionStart/Stop hooks or create
+a trust entry. This separation is the Option-C contract that avoids KC-Fn-68/69/70.
 
-Codex에서 hook까지 쓰려면 반드시 위의 repo-local `.codex/hooks.json` adapter를 별도로 설치하고,
-Codex의 `/hooks` review 또는 `~/.codex/config.toml`의 `[hooks.state]` trust 기록을 확인하세요.
+To use hooks in Codex, you must install the repo-local `.codex/hooks.json` adapter above separately,
+and check Codex's `/hooks` review or the `[hooks.state]` trust record in `~/.codex/config.toml`.
 
 ### Packaging
 
 ```bash
-# Claude 산출물
+# Claude artifacts
 scripts/package-plugin claude /tmp/cairn-claude-plugin
 ```
 
-Codex plugin-bundled hook packaging은 운영 경로에서 제거했습니다. Codex hook 표면은 repo-local
-adapter에서만 SessionStart·Stop 2종을 씁니다. PostToolUse는 쓰지 않고, Stop 시점 transcript scan으로
-웹 후보를 잡습니다(`cairn-stop-codex.sh`).
+Codex plugin-bundled hook packaging was removed from the operating path. The Codex hook surface uses
+only SessionStart · Stop (2 hooks) from the repo-local adapter. It does not use PostToolUse; instead
+it catches web candidates via a Stop-time transcript scan (`cairn-stop-codex.sh`).
 
 ---
 
-## 검증 (self-check)
+## Verification (self-check)
 
-포팅·수정 후 zero-dep 무결성을 확인하려면:
-
-```bash
-python3 core/_selftest.py                       # 코어 6 모듈 회귀 (195 케이스)
-python3 hooks/_selftest_codex_transcript_scan.py # Codex scanner 회귀
-```
-
-외부 의존·네트워크 없이 도는 결정적 테스트입니다.
-
-### 라이브 hook 확인 (설치 후)
+To check zero-dep integrity after porting/editing:
 
 ```bash
-# 새 세션 → 웹 fetch 1회 → 응답 종료(Stop) → 확인
-ls .cairn/sessions/   # hot.md · session-state.md · nudge-metrics.md 출현 = 정상
+python3 core/_selftest.py                       # core 6-module regression (195 cases)
+python3 hooks/_selftest_codex_transcript_scan.py # Codex scanner regression
 ```
 
-SessionStart hook은 **읽기 전용**이라 직전 세션 산출물이 없으면 무음입니다. 산출물 생성 주체는
-Stop hook이므로, 첫 세션은 응답을 한 번 끝내기 전까지 `sessions/`가 비어 있는 것이 정상입니다
-(세션을 막 열고 `ls` 하면 비어 있다고 해서 hook 미발동이 아닙니다).
+These are deterministic tests that run with no external dependency or network.
+
+### Live hook check (after install)
+
+```bash
+# New session → one web fetch → end the response (Stop) → check
+ls .cairn/sessions/   # hot.md · session-state.md · nudge-metrics.md appearing = healthy
+```
+
+The SessionStart hook is **read-only**, so it stays silent when there's no prior-session artifact.
+The artifacts are produced by the Stop hook, so it's normal for `sessions/` to be empty on the first
+session until you finish one response (an empty `sessions/` right after opening a session is not a
+sign the hook failed to fire).
 
 ---
 
-## 라이선스
+## License
 
 MIT — [LICENSE](LICENSE).

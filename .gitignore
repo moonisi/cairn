@@ -7,6 +7,9 @@ __pycache__/
 .cairn/
 .claude/
 
+# 내부 작업 문서 — 비동봉.
+docs/
+
 # OS·에디터 잡파일
 .DS_Store
 *.swp

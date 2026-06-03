@@ -33,7 +33,6 @@ cairn/
 ├── hooks/
 │   ├── hooks.json               # Claude 직접 설치 호환 copy
 │   ├── claude/hooks.json        # Claude 배선 source of truth
-│   ├── codex/hooks.json         # Codex B안 packaging 실험 source(PLUGIN_ROOT 기반)
 │   └── *.sh, *.py               # hook 스크립트 (런타임 공유, 무수정)
 ├── core/                        # 런타임·도메인 무관 코어 6 모듈 + self-test
 │   └── *.py                     # zero-dep (Python stdlib만)
@@ -129,26 +128,31 @@ lifecycle hook source로 자동 등록되지 않았기 때문입니다(KC-Fn-70)
 1. `adapters/codex/hooks.json.example`를 소비자 repo의 `.codex/hooks.json`로 복사합니다.
 2. `<CAIRN_ROOT_ABS>`를 이 Cairn repo의 절대경로로 치환합니다. 예: `/home/mooni/projects/cairn`.
 3. `CAIRN_DIR`은 기본적으로 소비자 repo의 `$(pwd)/.cairn`를 가리킵니다.
+4. 소비자 repo에 `.cairn/cairn.config.json`를 먼저 만듭니다. config가 없으면 hook은 발동해도
+   handoff draft를 만들지 않습니다.
 
 이 방식은 `${PLUGIN_ROOT}`에 의존하지 않습니다. hook script 내부는 `$0` 기준으로 `../core`를 찾아
 `CAIRN_CORE` 없이 동작합니다.
 
-### B안 packaging — 실험/보류
+### Codex plugin 설치 — hook 없음
 
-`hooks/codex/hooks.json`와 `scripts/package-plugin codex <out>`는 Codex plugin-bundled hook을 다시
-검증하기 위한 실험 경로입니다. 이 파일은 `${PLUGIN_ROOT}`를 사용하므로, Codex runtime이 plugin hook
-source로 등록되고 해당 변수를 제공한다는 증거가 생기기 전까지 운영 계약으로 쓰지 않습니다.
+`.codex-plugin/plugin.json`에는 `hooks` 필드가 없습니다. Codex plugin은 `/cairn:ingest` skill과
+문서·보조 산출물을 배포하는 단위이며, SessionStart/Stop hook을 설치하거나 trust 항목을 만들지
+않습니다. 이 분리는 KC-Fn-68/69/70을 회피하기 위한 C안 계약입니다.
+
+Codex에서 hook까지 쓰려면 반드시 위의 repo-local `.codex/hooks.json` adapter를 별도로 설치하고,
+Codex의 `/hooks` review 또는 `~/.codex/config.toml`의 `[hooks.state]` trust 기록을 확인하세요.
+
+### Packaging
 
 ```bash
-# Codex B안 실험 산출물(runtime hook 발동 미확인)
-scripts/package-plugin codex /tmp/cairn-codex-plugin
-
 # Claude 산출물
 scripts/package-plugin claude /tmp/cairn-claude-plugin
 ```
 
-Codex hook 표면은 SessionStart·Stop 2종만 씁니다. PostToolUse는 쓰지 않고, Stop 시점 transcript
-scan으로 웹 후보를 잡습니다(`cairn-stop-codex.sh`).
+Codex plugin-bundled hook packaging은 운영 경로에서 제거했습니다. Codex hook 표면은 repo-local
+adapter에서만 SessionStart·Stop 2종을 씁니다. PostToolUse는 쓰지 않고, Stop 시점 transcript scan으로
+웹 후보를 잡습니다(`cairn-stop-codex.sh`).
 
 ---
 

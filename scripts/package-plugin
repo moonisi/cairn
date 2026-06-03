@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Cairn plugin 산출물을 런타임별 표준 hook 위치로 패키징한다.
+# Cairn Claude plugin 산출물을 표준 hook 위치로 패키징한다.
 set -euo pipefail
 
 usage() {
-  printf 'usage: %s <claude|codex> <output-dir>\n' "$0" >&2
+  printf 'usage: %s claude <output-dir>\n' "$0" >&2
 }
 
 if [ "$#" -ne 2 ]; then
@@ -14,7 +14,7 @@ fi
 runtime="$1"
 out_dir="$2"
 case "$runtime" in
-  claude|codex) ;;
+  claude) ;;
   *) usage; exit 2 ;;
 esac
 
@@ -41,16 +41,10 @@ mkdir -p "$out_dir"
   tar -xf -
 )
 
-# 산출물에는 대상 runtime의 표준 hooks/hooks.json만 남긴다.
-# source tree의 hooks/{claude,codex}/hooks.json는 중복 로드·혼동 방지를 위해 제외한다.
+# 산출물에는 Claude 표준 hooks/hooks.json만 남긴다.
+# Codex hook은 plugin 산출물이 아니라 repo-local .codex/hooks.json adapter로 설치한다.
 if [ -d "$out_dir/hooks/claude" ]; then
   rm -r "$out_dir/hooks/claude"
-fi
-if [ -d "$out_dir/hooks/codex" ]; then
-  rm -r "$out_dir/hooks/codex"
-fi
-if [ -f "$out_dir/hooks/hooks.codex.json" ]; then
-  rm "$out_dir/hooks/hooks.codex.json"
 fi
 cp "$hook_source" "$out_dir/hooks/hooks.json"
 printf 'packaged %s plugin: %s\n' "$runtime" "$out_dir"

@@ -27,13 +27,13 @@
 
 ```
 cairn/
-├── .claude-plugin/plugin.json   # Claude 매니페스트
-├── .codex-plugin/plugin.json    # Codex 매니페스트 (🟡 초안 — 아래 "Codex" 참고)
+├── .claude-plugin/plugin.json   # Claude 매니페스트(hooks 필드 없음)
+├── .codex-plugin/plugin.json    # Codex 매니페스트(skill·문서·보조 산출물, hooks 필드 없음)
+├── adapters/codex/hooks.json.example # Codex repo-local .codex/hooks.json fallback 템플릿
 ├── hooks/
-│   ├── hooks.json               # 표준 hook 위치(원본 repo는 Claude 직접 설치용)
-│   ├── hooks.codex.json         # Codex legacy 배선 파일(PLUGIN_ROOT 기반)
+│   ├── hooks.json               # Claude 직접 설치 호환 copy
 │   ├── claude/hooks.json        # Claude 배선 source of truth
-│   ├── codex/hooks.json         # Codex 배선 source of truth
+│   ├── codex/hooks.json         # Codex B안 packaging 실험 source(PLUGIN_ROOT 기반)
 │   └── *.sh, *.py               # hook 스크립트 (런타임 공유, 무수정)
 ├── core/                        # 런타임·도메인 무관 코어 6 모듈 + self-test
 │   └── *.py                     # zero-dep (Python stdlib만)
@@ -115,32 +115,40 @@ plugin hook은 차단**됩니다.
 
 ---
 
-## Codex (Gate D-1 B안)
+## Codex
 
-Codex는 hook 표면이 다릅니다 — SessionStart·Stop 2종만 쓰고 PostToolUse 대신 Stop 시점
-transcript scan으로 웹 후보를 잡습니다(`cairn-stop-codex.sh`). hook 스크립트 본체는 Claude와
-**공유**하되 배선 파일은 런타임별로 분리합니다.
+🔵 현재 운영 기본값은 **C안 fallback**입니다.
 
-- `hooks/claude/hooks.json`: Claude 배선 source of truth.
-- `hooks/codex/hooks.json`: Codex 배선 source of truth(`PLUGIN_ROOT` + session cwd 기반).
-- `hooks/hooks.json`: 설치/패키징 표준 위치. 원본 repo에서는 Claude 직접 설치 호환을 위해 Claude 배선을 유지합니다.
+Codex plugin은 skill·문서·보조 산출물로만 설치하고, hook은 소비자 repo의
+repo-local `.codex/hooks.json` adapter로 별도 배치합니다. 이유는 Gate D-1 실측에서 Codex plugin이
+validation·install·cache 복사까지는 통과했지만, 기본 `hooks/hooks.json`가 `codex exec` runtime
+lifecycle hook source로 자동 등록되지 않았기 때문입니다(KC-Fn-70).
 
-Codex plugin validation은 `.codex-plugin/plugin.json`의 `hooks` 필드를 거부하므로, Codex 산출물은
-manifest override 없이 기본 `hooks/hooks.json` 위치를 사용합니다. 런타임별 산출물은 zero-dep
-패키징 스크립트로 만듭니다.
+### 운영 fallback — repo-local `.codex/hooks.json`
+
+1. `adapters/codex/hooks.json.example`를 소비자 repo의 `.codex/hooks.json`로 복사합니다.
+2. `<CAIRN_ROOT_ABS>`를 이 Cairn repo의 절대경로로 치환합니다. 예: `/home/mooni/projects/cairn`.
+3. `CAIRN_DIR`은 기본적으로 소비자 repo의 `$(pwd)/.cairn`를 가리킵니다.
+
+이 방식은 `${PLUGIN_ROOT}`에 의존하지 않습니다. hook script 내부는 `$0` 기준으로 `../core`를 찾아
+`CAIRN_CORE` 없이 동작합니다.
+
+### B안 packaging — 실험/보류
+
+`hooks/codex/hooks.json`와 `scripts/package-plugin codex <out>`는 Codex plugin-bundled hook을 다시
+검증하기 위한 실험 경로입니다. 이 파일은 `${PLUGIN_ROOT}`를 사용하므로, Codex runtime이 plugin hook
+source로 등록되고 해당 변수를 제공한다는 증거가 생기기 전까지 운영 계약으로 쓰지 않습니다.
 
 ```bash
-# Codex 산출물
+# Codex B안 실험 산출물(runtime hook 발동 미확인)
 scripts/package-plugin codex /tmp/cairn-codex-plugin
 
 # Claude 산출물
 scripts/package-plugin claude /tmp/cairn-claude-plugin
 ```
 
-Codex local marketplace 실측에서는 validator 통과와 plugin add/cache 설치까지 확인했습니다. 다만
-`codex exec --dangerously-bypass-hook-trust`에서 기본 `hooks/hooks.json` lifecycle 발동 증거는 아직
-확보하지 못했습니다. Codex에서 plugin hook이 계속 미발동하면 fallback은 repo-local `.codex/hooks.json`
-adapter(C안)입니다.
+Codex hook 표면은 SessionStart·Stop 2종만 씁니다. PostToolUse는 쓰지 않고, Stop 시점 transcript
+scan으로 웹 후보를 잡습니다(`cairn-stop-codex.sh`).
 
 ---
 

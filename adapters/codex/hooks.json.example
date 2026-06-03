@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "CAIRN_DIR=\"$(pwd)/.cairn\" CAIRN_SESSION=codex bash \"${PLUGIN_ROOT}/hooks/cairn-sessionstart.sh\"",
+            "command": "CAIRN_DIR=\"$(pwd)/.cairn\" CAIRN_SESSION=codex bash \"<CAIRN_ROOT_ABS>/hooks/cairn-sessionstart.sh\"",
             "timeout": 10
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "CAIRN_DIR=\"$(pwd)/.cairn\" CAIRN_SESSION=codex bash \"${PLUGIN_ROOT}/hooks/cairn-stop-codex.sh\"",
+            "command": "CAIRN_DIR=\"$(pwd)/.cairn\" CAIRN_SESSION=codex bash \"<CAIRN_ROOT_ABS>/hooks/cairn-stop-codex.sh\"",
             "timeout": 20
           }
         ]

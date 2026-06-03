@@ -1,6 +1,6 @@
 # Cairn — Getting Started (no experience needed)
 
-> 🌐 **한국어**: [안내서.md](안내서.md) · Reference: [README.en.md](README.en.md)
+> 🌐 **한국어**: [안내서.md](안내서.md) · Reference: [README.md](README.md)
 
 This guide is written so that even someone new to programming or plugins can follow along. Take your time.
 

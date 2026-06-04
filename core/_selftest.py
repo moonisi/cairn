@@ -708,6 +708,41 @@ def t_ingest_reverse_lookup(tmp):
     check("queue ingested 전환", next(f for f in nudge.parse_queue(cd) if f["qhash"] == nudge.qhash(loc8))["status"] == "ingested")
 
 
+def t_capture_session_source(tmp):
+    print("[9e] capture --session-source: 대화 turn → conversation provenance 민팅 (update3)")
+    cd, config = setup_vault(tmp)
+
+    # provenance 없는 draft + session_turn → conversation provenance 결정적 민팅 + turn 자동 세팅
+    st = "bba73fe0-13a9-4688-8684-c6a873f9fb9b#3"
+    draft = ("---\nslug: cap-decision\ntype: note\ntitle: capture flow\ntags: [t]\n"
+             "refs: []\nstatus: approved\nupdated: 2026-06-04\n---\n## 결정\ncapture draft body.")
+    df = Path(tmp) / "cap-decision.md"
+    df.write_text(draft, encoding="utf-8")
+    errs = ing.write_page(str(df), cd, config, session_source=st)  # provenance 없는 draft, turn만
+    check("--session-source draft 검증 통과(민팅 후)", errs == [])
+    fm, _ = r.parse_frontmatter((cd / "pages" / "note" / "cap-decision.md").read_text(encoding="utf-8"))
+    # 결정적 민팅: conversation:<quote(turn)>@<content_hash(body)>
+    expect = r.format_provenance("conversation", r.make_locator(st), r.content_hash("## 결정\ncapture draft body."))
+    check("conversation provenance 민팅(quote locator + body hash)", expect in fm["provenance"])
+    check("turn 미지정 → session_turn 자동 세팅", fm.get("turn") == st)
+    check("큐 항목 없어도 정상(역조회 미실행)", nudge.parse_queue(cd) == [])
+
+    # 멱등: 동일 provenance 이미 있으면 중복 안 됨
+    df.write_text(draft.replace("provenance: []", ""), encoding="utf-8")  # no-op(이미 provenance 없음)
+    errs2 = ing.write_page(str(df), cd, config, session_source=st)
+    check("재기록 검증 통과", errs2 == [])
+    fm2, _ = r.parse_frontmatter((cd / "pages" / "note" / "cap-decision.md").read_text(encoding="utf-8"))
+    check("conversation provenance 중복 안 됨", fm2["provenance"].count(expect) == 1)
+
+    # --turn 명시 시 turn 우선(provenance는 여전히 session_source로 민팅)
+    df3 = Path(tmp) / "cap-explicit.md"
+    df3.write_text(draft.replace("cap-decision", "cap-explicit"), encoding="utf-8")
+    ing.write_page(str(df3), cd, config, turn="s#99", session_source=st)
+    fm3, _ = r.parse_frontmatter((cd / "pages" / "note" / "cap-explicit.md").read_text(encoding="utf-8"))
+    check("--turn 명시 우선", fm3.get("turn") == "s#99")
+    check("--turn 명시여도 conversation provenance 민팅", expect in fm3["provenance"])
+
+
 def t_source_split(tmp):
     print("[10] multi-entry source 분해")
     cd, config = setup_vault(tmp)
@@ -945,6 +980,8 @@ def main():
         t_page_turn_fm(tmp)
     with tempfile.TemporaryDirectory() as tmp:
         t_ingest_reverse_lookup(tmp)
+    with tempfile.TemporaryDirectory() as tmp:
+        t_capture_session_source(tmp)
     with tempfile.TemporaryDirectory() as tmp:
         t_source_split(tmp)
     with tempfile.TemporaryDirectory() as tmp:

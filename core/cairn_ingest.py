@@ -263,7 +263,7 @@ def _mark_ingested(cd, config, qhashes):
         nudge.append_metric(cd, "nudge-ingested", qh, session)
 
 
-def write_page(page_md_path, cd, config, turn=None, source_url=None):
+def write_page(page_md_path, cd, config, turn=None, source_url=None, session_source=None):
     text = Path(page_md_path).read_text(encoding="utf-8")
     fm, body = r.parse_frontmatter(text)
     if source_url:  # skill 경로: locator → url provenance 결정적 민팅(quote+body hash) → Phase C 자동연결
@@ -271,6 +271,13 @@ def write_page(page_md_path, cd, config, turn=None, source_url=None):
         prov = fm.get("provenance", [])
         if item not in prov:
             fm["provenance"] = prov + [item]
+    if session_source:  # capture 경로: 대화 turn → conversation provenance 결정적 민팅(quote+body hash)
+        item = r.format_provenance("conversation", r.make_locator(session_source), r.content_hash(body))
+        prov = fm.get("provenance", [])
+        if item not in prov:
+            fm["provenance"] = prov + [item]
+        if turn is None:  # turn 미지정 시 session_turn으로 로그 링크(대화는 큐 항목 없어 역조회 불가)
+            turn = session_source
     errs = validate_page(fm, config)
     if errs:
         return errs
@@ -383,7 +390,7 @@ def main(argv):
 
     if cmd == "write":
         if len(argv) < 2:
-            print("usage: write <page.md> [--turn <session_turn>] [--source-url <locator>]")
+            print("usage: write <page.md> [--turn <session_turn>] [--source-url <locator>] [--session-source <session_turn>]")
             return 2
         # --turn <session_turn>: 어댑터/스킬이 carry한 session_turn 전달(코어는 산출 안 함, KC-Fn-41)
         turn = None
@@ -395,7 +402,12 @@ def main(argv):
         if "--source-url" in argv:
             i = argv.index("--source-url")
             source_url = argv[i + 1] if i + 1 < len(argv) else None
-        errs = write_page(argv[1], cd, config, turn=turn, source_url=source_url)
+        # --session-source <session_turn>: capture skill이 대화 turn 전달 → conversation provenance 민팅
+        session_source = None
+        if "--session-source" in argv:
+            i = argv.index("--session-source")
+            session_source = argv[i + 1] if i + 1 < len(argv) else None
+        errs = write_page(argv[1], cd, config, turn=turn, source_url=source_url, session_source=session_source)
         if errs:
             for e in errs:
                 print(f"INVALID: {e}")

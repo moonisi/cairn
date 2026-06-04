@@ -20,6 +20,7 @@ Three automatic actions plus one manual action.
 | Session end (Stop) | **Handoff draft** | This session's activity is drafted into the next session's `session-state` + `hot.md`. |
 | User-invoked | **`/cairn:setup` skill** | Bootstraps the Vault (`.cairn/`) + `cairn.config.json` in a consumer project (one-time, HITL). |
 | User-invoked | **`/cairn:ingest` skill** | Absorbs queued candidates into Vault pages after your approval (HITL). Never writes automatically. |
+| User-invoked | **`/cairn:capture` skill** | Absorbs decisions / agreements / lessons from the *current conversation* into Vault pages (HITL). The conversation itself is the source — no nudge queue involved. |
 
 **Core principle**: Cairn never *accumulates* records automatically. Automation goes only as far
 as *proposing candidates*; the actual page write always requires a human approval. (So-called
@@ -33,7 +34,7 @@ automatic permanent ingest is deliberately excluded.)
 cairn/
 ├── .claude-plugin/plugin.json   # Claude manifest (no hooks field)
 ├── .codex-plugin/plugin.json    # Codex manifest (skills/docs/aux artifacts, no hooks field)
-├── adapters/codex/hooks.json.example # Codex repo-local .codex/hooks.json fallback template
+├── adapters/codex/hooks.json.example # Codex repo-local .codex/hooks.json adapter template
 ├── hooks/
 │   ├── hooks.json               # Claude direct-install compatible copy
 │   ├── claude/hooks.json        # Claude wiring source of truth
@@ -42,7 +43,8 @@ cairn/
 │   └── *.py                     # zero-dep (Python stdlib only)
 └── skills/
     ├── setup/SKILL.md           # /cairn:setup skill (Vault bootstrap)
-    └── ingest/SKILL.md          # /cairn:ingest skill (candidate absorption)
+    ├── ingest/SKILL.md          # /cairn:ingest skill (candidate absorption)
+    └── capture/SKILL.md         # /cairn:capture skill (conversation absorption)
 ```
 
 The 6 core modules: `cairn_root` (paths / frontmatter / hash) · `cairn_ingest` (absorption) ·
@@ -68,11 +70,11 @@ Same via CLI (headless):
 ```bash
 claude plugin marketplace add ~/projects/cairn
 claude plugin install cairn@cairn
-claude plugin details cairn@cairn   # verify install (Skills 2 · Hooks 3)
+claude plugin details cairn@cairn   # verify install (Skills 3 · Hooks 3)
 ```
 
-On install, the 3 hooks in `hooks/hooks.json` are wired automatically and the `/cairn:setup` and
-`/cairn:ingest` skills are registered. (The standard `hooks/hooks.json` is **auto-loaded**, so the
+On install, the 3 hooks in `hooks/hooks.json` are wired automatically and the `/cairn:setup`,
+`/cairn:ingest` and `/cairn:capture` skills are registered. (The standard `hooks/hooks.json` is **auto-loaded**, so the
 plugin.json carries **no** `hooks` field — declaring it twice breaks hook loading.) Hooks ask for a
 one-time trust confirmation in an interactive session.
 
@@ -103,7 +105,7 @@ CLI (headless):
 ```bash
 claude plugin marketplace update cairn
 claude plugin update cairn@cairn
-claude plugin details cairn@cairn   # confirm update (Skills 2 · Hooks 3)
+claude plugin details cairn@cairn   # confirm update (Skills 3 · Hooks 3)
 ```
 
 > 🔴 **Cache caveat**: changes that move file paths — like renaming or deleting a skill — can leave a
@@ -150,63 +152,55 @@ managed settings' `enabledPlugins`**. That is the **only** way.
 
 ## Codex
 
-🔵 The current operating default is the **Option-C fallback**.
+Codex uses Cairn in two pieces:
 
-The Codex plugin installs the `/cairn:setup` and `/cairn:ingest` skills plus docs/aux artifacts only;
-hooks are placed separately as a
-repo-local `.codex/hooks.json` adapter in the consumer repo. The reason: in Gate D-1 testing the
-Codex plugin passed validation/install/cache-copy, but the default `hooks/hooks.json` was not
-auto-registered as a `codex exec` runtime lifecycle hook source (KC-Fn-70).
+1. The Codex plugin provides the `/cairn:setup`, `/cairn:ingest`, and `/cairn:capture` skills.
+2. The session hooks are installed separately in each project with a repo-local `.codex/hooks.json`
+   adapter.
 
-### Operating fallback — repo-local `.codex/hooks.json`
+The plugin does **not** register hooks by itself. This keeps installation explicit: skills are
+installed once, and hooks are enabled only in the projects where you want session continuity.
 
-From the consumer repo root (substitute the example absolute path for your own environment):
+### Install the Codex plugin
+
+Clone Cairn and add it as a local Codex marketplace:
 
 ```bash
-# 1) Copy the adapter template to the consumer repo's .codex/hooks.json
+git clone https://github.com/moonisi/cairn.git ~/cairn
+cd ~/cairn
+codex plugin marketplace add "$(pwd)"
+codex plugin add cairn@cairn
+codex plugin list
+```
+
+`codex plugin list` should show `cairn@cairn` as `installed, enabled`. Start a new Codex session
+after installing so the new skills are loaded. You should then be able to call:
+
+- `/cairn:setup`
+- `/cairn:ingest`
+- `/cairn:capture`
+
+### Enable hooks in a project
+
+Run this from the project where you want Cairn to keep session context:
+
+```bash
+CAIRN_ROOT="$HOME/cairn"
 mkdir -p .codex
-cp <CAIRN_ROOT_ABS>/adapters/codex/hooks.json.example .codex/hooks.json
-
-# 2) Replace the <CAIRN_ROOT_ABS> placeholder with this Cairn repo's absolute path
-#    (e.g. /home/mooni/projects/cairn) — via sed or an editor
-sed -i "s#<CAIRN_ROOT_ABS>#$HOME/projects/cairn#g" .codex/hooks.json
-
-# 3) Create the Vault config (without it, hooks fire but produce no handoff draft).
-#    Run /cairn:setup from the Codex plugin, share an existing .cairn/, or write it manually.
+cp "$CAIRN_ROOT/adapters/codex/hooks.json.example" .codex/hooks.json
+CAIRN_ROOT_ABS="$(cd "$CAIRN_ROOT" && pwd)"
+sed -i "s#<CAIRN_ROOT_ABS>#$CAIRN_ROOT_ABS#g" .codex/hooks.json
 ```
 
 - `CAIRN_DIR` defaults to the consumer repo's `$(pwd)/.cairn` (overridable).
-- This route does not depend on `${PLUGIN_ROOT}`. The hook scripts locate `../core` relative to `$0`,
-  so they work without `CAIRN_CORE`.
-- After install, confirm hook registration in Codex via `/hooks` review or the `[hooks.state]` trust
-  record in `~/.codex/config.toml`.
+- Open `/hooks` in Codex, review the `SessionStart` and `Stop` hooks, and trust them.
+- Run `/cairn:setup` once in the project to create `.cairn/cairn.config.json`.
 
-> 🟡 **Codex verification scope**: the adapter contract/paths above are based on Gate D-1 confirmed
-> artifacts (KC-Fn-68/69/70). However, **live verification of this install procedure itself must be
-> done in a Codex session** to be accurate (per the D-KC-09 boundary: the Codex adapter is developed
-> separately in Codex). It cannot be verified from a Claude Code environment.
+The first session may not have anything to show yet. After you finish a Codex response, the Stop
+hook writes handoff drafts under `.cairn/sessions/`; the next session can read them back.
 
-### Codex plugin install — no hooks
-
-`.codex-plugin/plugin.json` has no `hooks` field. The Codex plugin is the unit that ships the
-`/cairn:setup` and `/cairn:ingest` skills plus docs/aux artifacts; it does not install
-SessionStart/Stop hooks or create a trust entry. This separation is the Option-C contract that avoids
-KC-Fn-68/69/70.
-
-To use hooks in Codex, you must install the repo-local `.codex/hooks.json` adapter above separately,
-and check Codex's `/hooks` review or the `[hooks.state]` trust record in `~/.codex/config.toml`.
-You can create the Vault config with `/cairn:setup` after installing the Codex plugin.
-
-### Packaging
-
-```bash
-# Claude artifacts
-scripts/package-plugin claude /tmp/cairn-claude-plugin
-```
-
-Codex plugin-bundled hook packaging was removed from the operating path. The Codex hook surface uses
-only SessionStart · Stop (2 hooks) from the repo-local adapter. It does not use PostToolUse; instead
-it catches web candidates via a Stop-time transcript scan (`cairn-stop-codex.sh`).
+Codex hooks are intentionally installed with the repo-local adapter. The adapter uses `SessionStart`
+and `Stop`; web candidates are collected during the Stop-time transcript scan (`cairn-stop-codex.sh`).
 
 ---
 

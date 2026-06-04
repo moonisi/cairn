@@ -33,11 +33,12 @@ needed. They're plain text files inside your folder — open, read, and edit the
 | **Vault** | The folder where all records are stored. Usually the `.cairn/` folder inside the project. It's yours. |
 | **hook (automatic action)** | A small script Cairn runs automatically at certain moments (session start/end, after a web search). |
 | **skill (`/cairn:setup`)** | A command you call yourself. Creates the Vault (`.cairn/`) and the config file, once. |
-| **skill (`/cairn:ingest`)** | A command you call yourself. "Absorbs" collected candidates into real records. |
+| **skill (`/cairn:ingest`)** | A command you call yourself. "Absorbs" collected candidates (things seen on the web) into real records. |
+| **skill (`/cairn:capture`)** | A command you call yourself. "Absorbs" decisions / agreements / lessons from the *current conversation* into real records. |
 
 **The important promise**: Cairn never *accumulates* records without your permission. Automatic actions
 go only as far as "proposing candidates." Actually storing something always happens after you approve
-it with `/cairn:ingest`.
+it with `/cairn:ingest` or `/cairn:capture`.
 
 ---
 
@@ -75,6 +76,44 @@ your computer, so there's a one-time check — that's normal.)
 folder) and the config file (`cairn.config.json`). It shows you the contents and asks "create it like
 this?" — review and approve. **Without this config file, records won't be saved even if hooks run** —
 that's why the one-time setup is required.
+
+### If you use Codex
+
+Codex setup has two parts: install the skills, then copy the hook adapter into each project where
+you want Cairn to remember session context.
+
+First, download Cairn and install the Codex plugin:
+
+```bash
+git clone https://github.com/moonisi/cairn.git ~/cairn
+cd ~/cairn
+codex plugin marketplace add "$(pwd)"
+codex plugin add cairn@cairn
+codex plugin list
+```
+
+If `codex plugin list` shows `cairn@cairn` as `installed, enabled`, open a new Codex session. The new
+session should know `/cairn:setup`, `/cairn:ingest`, and `/cairn:capture`.
+
+Next, go to the project where you want Cairn to work and copy the hook adapter:
+
+```bash
+CAIRN_ROOT="$HOME/cairn"
+mkdir -p .codex
+cp "$CAIRN_ROOT/adapters/codex/hooks.json.example" .codex/hooks.json
+CAIRN_ROOT_ABS="$(cd "$CAIRN_ROOT" && pwd)"
+sed -i "s#<CAIRN_ROOT_ABS>#$CAIRN_ROOT_ABS#g" .codex/hooks.json
+```
+
+In Codex, open `/hooks`, review the `SessionStart` and `Stop` hooks, and trust them. Then run:
+
+```
+/cairn:setup
+```
+
+That creates `.cairn/cairn.config.json` after showing you a draft and asking for approval. The first
+session may look empty; after a Codex response finishes, Cairn writes handoff drafts under
+`.cairn/sessions/`, and the next session can read them.
 
 ---
 
@@ -124,7 +163,29 @@ It never saves before approval, so relax.
 
 ---
 
-## 6. Frequently asked questions
+## 6. Recording conversation conclusions — `/cairn:capture`
+
+Sometimes the important thing comes not from web material but from **the conversation itself** — when
+you *decided* something, *agreed* on a point, or learned a *lesson*. To record it:
+
+```
+/cairn:capture
+```
+
+Then Cairn:
+1. Works with you to pin down what to record (decision / agreement / lesson).
+2. Lets you choose the kind to store (`decision` / `lesson` / `note`).
+3. Shows a **draft** of the tidied content and asks **"save it like this?"**
+4. Only once you approve does it save it as a page in the Vault.
+
+Just like `/cairn:ingest`, nothing is saved before approval. The only difference is the source —
+ingest is *what you saw on the web*, capture is *what you decided in conversation*.
+
+> Note: it does not proactively ask "want to save this?" — call it yourself when you want to record.
+
+---
+
+## 7. Frequently asked questions
 
 **Q. Where are records stored?**
 A. In the `.cairn/` folder inside the project. All markdown files — they open in a plain text editor too.
@@ -138,13 +199,9 @@ A. That's when the admin has turned on `allowManagedHooksOnly`. It blocks not ju
    force-enable `cairn@cairn` in the managed settings' `enabledPlugins`.**
 
 **Q. Does it work in Codex too?**
-A. Yes. But the current operating default is a repo-local `.codex/hooks.json` adapter rather than
-   plugin-bundled hooks. Copy `adapters/codex/hooks.json.example` to your consumer repo's
-   `.codex/hooks.json` and replace `<CAIRN_ROOT_ABS>` with this Cairn repo's absolute path. You also
-   need to create `.cairn/cairn.config.json` first for the handoff draft to be produced. If you install
-   the Codex plugin, you can create that config with `/cairn:setup` and use `/cairn:ingest` too. The
-   plugin still does not include hooks. After installing the adapter, confirm it in Codex via `/hooks`
-   review or the trust record in `~/.codex/config.toml` (see the "Codex" section of [README.md](README.md)).
+A. Yes. Install the Codex plugin for the three skills, then copy the repo-local `.codex/hooks.json`
+   adapter into each project where you want session continuity. The step-by-step commands are in
+   "If you use Codex" above and in the "Codex" section of [README.md](README.md).
 
 **Q. How do I update when a new version comes out?**
 A. Two lines in Claude Code:

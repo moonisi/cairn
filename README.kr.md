@@ -19,6 +19,7 @@
 | 세션 종료 (Stop) | **handoff draft** | 이번 세션 활동을 다음 세션용 `session-state` + `hot.md` 초안으로 정리. |
 | 사용자 호출 | **`/cairn:setup` skill** | 소비자 프로젝트에 Vault(`.cairn/`) + `cairn.config.json`을 HITL로 부트스트랩(최초 1회). |
 | 사용자 호출 | **`/cairn:ingest` skill** | 큐에 쌓인 후보를 사용자 승인(HITL) 후 Vault page로 흡수. 자동 write 없음. |
+| 사용자 호출 | **`/cairn:capture` skill** | *현재 대화*의 결정·합의·교훈을 사용자 승인(HITL) 후 Vault page로 흡수. 대화 자체가 출처 — nudge 큐 무관. |
 
 **핵심 원칙**: 자동으로 기록을 *쌓지* 않는다. 자동은 "후보 제안"까지만, 실제 page write는
 항상 사람이 승인. (이른바 자동 영구 ingest는 의도적으로 제외.)
@@ -31,7 +32,7 @@
 cairn/
 ├── .claude-plugin/plugin.json   # Claude 매니페스트(hooks 필드 없음)
 ├── .codex-plugin/plugin.json    # Codex 매니페스트(skill·문서·보조 산출물, hooks 필드 없음)
-├── adapters/codex/hooks.json.example # Codex repo-local .codex/hooks.json fallback 템플릿
+├── adapters/codex/hooks.json.example # Codex repo-local .codex/hooks.json adapter 템플릿
 ├── hooks/
 │   ├── hooks.json               # Claude 직접 설치 호환 copy
 │   ├── claude/hooks.json        # Claude 배선 source of truth
@@ -40,7 +41,8 @@ cairn/
 │   └── *.py                     # zero-dep (Python stdlib만)
 └── skills/
     ├── setup/SKILL.md           # /cairn:setup skill (Vault 부트스트랩)
-    └── ingest/SKILL.md          # /cairn:ingest skill (후보 흡수)
+    ├── ingest/SKILL.md          # /cairn:ingest skill (후보 흡수)
+    └── capture/SKILL.md         # /cairn:capture skill (대화 결론 흡수)
 ```
 
 코어 6 모듈: `cairn_root`(경로·frontmatter·hash) · `cairn_ingest`(흡수) ·
@@ -66,10 +68,10 @@ CLI(headless)로도 동일:
 ```bash
 claude plugin marketplace add ~/projects/cairn
 claude plugin install cairn@cairn
-claude plugin details cairn@cairn   # 설치 검증(Skills 2·Hooks 3 확인)
+claude plugin details cairn@cairn   # 설치 검증(Skills 3·Hooks 3 확인)
 ```
 
-설치하면 `hooks/hooks.json`의 hook 3종이 자동 배선되고 `/cairn:setup`·`/cairn:ingest` skill이 등록됩니다.
+설치하면 `hooks/hooks.json`의 hook 3종이 자동 배선되고 `/cairn:setup`·`/cairn:ingest`·`/cairn:capture` skill이 등록됩니다.
 (표준 `hooks/hooks.json`은 **자동 로드**되므로 plugin.json에 `hooks` 필드를 두지 **않습니다** —
 중복 선언 시 hook 로드가 실패합니다.) hook은 대화형 세션에서 최초 신뢰(trust) 확인을 받습니다.
 
@@ -99,7 +101,7 @@ CLI(headless):
 ```bash
 claude plugin marketplace update cairn
 claude plugin update cairn@cairn
-claude plugin details cairn@cairn   # 갱신 확인(Skills 2·Hooks 3)
+claude plugin details cairn@cairn   # 갱신 확인(Skills 3·Hooks 3)
 ```
 
 > 🔴 **캐시 주의**: skill 개명·삭제처럼 **파일 경로가 바뀌는 변경**은 plugin 캐시
@@ -146,60 +148,55 @@ plugin hook은 차단**됩니다.
 
 ## Codex
 
-🔵 현재 운영 기본값은 **C안 fallback**입니다.
+Codex에서는 Cairn을 두 부분으로 씁니다.
 
-Codex plugin은 `/cairn:setup`·`/cairn:ingest` skill과 문서·보조 산출물로만 설치하고, hook은 소비자 repo의
-repo-local `.codex/hooks.json` adapter로 별도 배치합니다. 이유는 Gate D-1 실측에서 Codex plugin이
-validation·install·cache 복사까지는 통과했지만, 기본 `hooks/hooks.json`가 `codex exec` runtime
-lifecycle hook source로 자동 등록되지 않았기 때문입니다(KC-Fn-70).
+1. Codex plugin은 `/cairn:setup`, `/cairn:ingest`, `/cairn:capture` skill을 제공합니다.
+2. 세션 hook은 Cairn을 쓸 프로젝트마다 repo-local `.codex/hooks.json` adapter로 따로 설치합니다.
 
-### 운영 fallback — repo-local `.codex/hooks.json`
+plugin 자체가 hook을 자동 등록하지는 않습니다. skill은 한 번 설치하고, 세션 연속성이 필요한
+프로젝트에만 hook을 명시적으로 켜는 구조입니다.
 
-소비자 repo 루트에서(예시 절대경로는 본인 환경으로 치환):
+### Codex plugin 설치
+
+Cairn을 내려받고 로컬 Codex marketplace로 등록합니다.
 
 ```bash
-# 1) 어댑터 템플릿을 소비자 repo의 .codex/hooks.json로 복사
+git clone https://github.com/moonisi/cairn.git ~/cairn
+cd ~/cairn
+codex plugin marketplace add "$(pwd)"
+codex plugin add cairn@cairn
+codex plugin list
+```
+
+`codex plugin list`에서 `cairn@cairn`이 `installed, enabled`로 보이면 설치된 것입니다. 설치
+후에는 새 Codex 세션을 열어야 새 skill 목록이 반영됩니다. 새 세션에서 아래 skill을 호출할 수
+있어야 합니다.
+
+- `/cairn:setup`
+- `/cairn:ingest`
+- `/cairn:capture`
+
+### 프로젝트에 hook 켜기
+
+Cairn으로 세션 맥락을 이어갈 프로젝트 루트에서 실행합니다.
+
+```bash
+CAIRN_ROOT="$HOME/cairn"
 mkdir -p .codex
-cp <CAIRN_ROOT_ABS>/adapters/codex/hooks.json.example .codex/hooks.json
-
-# 2) <CAIRN_ROOT_ABS> 자리표시자를 이 Cairn repo의 절대경로로 치환
-#    (예: /home/mooni/projects/cairn) — sed 또는 에디터로
-sed -i "s#<CAIRN_ROOT_ABS>#$HOME/projects/cairn#g" .codex/hooks.json
-
-# 3) Vault config 생성 (없으면 hook이 발동해도 handoff draft를 안 만듦)
-#    Codex plugin의 /cairn:setup을 실행하거나, 이미 만든 .cairn/를 공유하거나, 수동 작성
+cp "$CAIRN_ROOT/adapters/codex/hooks.json.example" .codex/hooks.json
+CAIRN_ROOT_ABS="$(cd "$CAIRN_ROOT" && pwd)"
+sed -i "s#<CAIRN_ROOT_ABS>#$CAIRN_ROOT_ABS#g" .codex/hooks.json
 ```
 
 - `CAIRN_DIR`은 기본적으로 소비자 repo의 `$(pwd)/.cairn`를 가리킵니다(override 가능).
-- 이 방식은 `${PLUGIN_ROOT}`에 의존하지 않습니다. hook script 내부는 `$0` 기준으로 `../core`를
-  찾아 `CAIRN_CORE` 없이 동작합니다.
-- 설치 뒤 Codex에서 `/hooks` review 또는 `~/.codex/config.toml`의 `[hooks.state]` trust 기록으로
-  hook 등록을 확인합니다.
+- Codex에서 `/hooks`를 열어 `SessionStart`와 `Stop` hook을 검토하고 trust하세요.
+- 프로젝트에서 `/cairn:setup`을 한 번 실행해 `.cairn/cairn.config.json`을 만드세요.
 
-> 🟡 **Codex 실측 범위**: 위 어댑터 계약·경로는 Gate D-1 실측(KC-Fn-68/69/70) 확정 산출물
-> 기반입니다. 다만 **본 설치 절차 자체의 라이브 검증은 Codex 세션에서 수행**해야 정확합니다
-> (D-KC-09 경계: Codex 어댑터는 Codex에서 별도 진행). Claude Code 환경에서는 검증 불가.
+첫 세션에는 아직 보여줄 내용이 없을 수 있습니다. Codex 응답이 한 번 끝나면 Stop hook이
+`.cairn/sessions/` 아래에 handoff draft를 만들고, 다음 세션에서 그 내용을 다시 읽습니다.
 
-### Codex plugin 설치 — hook 없음
-
-`.codex-plugin/plugin.json`에는 `hooks` 필드가 없습니다. Codex plugin은 `/cairn:setup`·`/cairn:ingest`
-skill과 문서·보조 산출물을 배포하는 단위이며, SessionStart/Stop hook을 설치하거나 trust 항목을
-만들지 않습니다. 이 분리는 KC-Fn-68/69/70을 회피하기 위한 C안 계약입니다.
-
-Codex에서 hook까지 쓰려면 반드시 위의 repo-local `.codex/hooks.json` adapter를 별도로 설치하고,
-Codex의 `/hooks` review 또는 `~/.codex/config.toml`의 `[hooks.state]` trust 기록을 확인하세요.
-Vault config는 Codex plugin 설치 후 `/cairn:setup`으로 만들 수 있습니다.
-
-### Packaging
-
-```bash
-# Claude 산출물
-scripts/package-plugin claude /tmp/cairn-claude-plugin
-```
-
-Codex plugin-bundled hook packaging은 운영 경로에서 제거했습니다. Codex hook 표면은 repo-local
-adapter에서만 SessionStart·Stop 2종을 씁니다. PostToolUse는 쓰지 않고, Stop 시점 transcript scan으로
-웹 후보를 잡습니다(`cairn-stop-codex.sh`).
+Codex hook은 repo-local adapter로 설치합니다. adapter는 `SessionStart`와 `Stop`을 사용하며,
+웹 후보는 Stop 시점 transcript scan으로 수집합니다(`cairn-stop-codex.sh`).
 
 ---
 

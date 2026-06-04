@@ -229,6 +229,21 @@ sign the hook failed to fire).
 
 ---
 
+## Future considerations
+
+- **User-scoped memory (deferred)** — The Vault is currently project-scoped (D-KC-05):
+  every project owns its own `.cairn/`. A dual-vault model — a user-level Vault at
+  `~/.cairn` (env `CAIRN_USER_DIR`) holding cross-project durable pages
+  (`lesson`/`note`/`preference`) alongside each project Vault — was evaluated and **deferred**.
+  - Why: preferences and working habits are already covered by the harness's global memory
+    (`~/.claude/CLAUDE.md`); the only genuine gap is cross-project *lessons*, and there is no
+    demonstrated demand yet → YAGNI.
+  - Re-entry trigger: once ≥3–5 pages you actually want shared accumulate across 2+ projects,
+    start with the minimal variant — read-only injection of a `CAIRN_USER_DIR` index at
+    SessionStart, **without** write routing or cross-vault dedup.
+
+---
+
 ## License
 
 MIT — [LICENSE](LICENSE).

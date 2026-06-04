@@ -224,6 +224,20 @@ Stop hook이므로, 첫 세션은 응답을 한 번 끝내기 전까지 `session
 
 ---
 
+## 향후 검토
+
+- **User 단위 기억 (보류)** — 현재 Vault는 project-scoped(D-KC-05)로, 프로젝트마다 자기
+  `.cairn/`을 소유합니다. 여러 프로젝트가 공유할 영속 페이지(`lesson`/`note`/`preference`)를
+  위해 user 단위 Vault(`~/.cairn`, env `CAIRN_USER_DIR`)를 프로젝트 Vault와 병존시키는
+  이중 vault 모델을 검토했으나 **보류**했습니다.
+  - 사유: 취향·작업 습관은 harness 전역 메모리(`~/.claude/CLAUDE.md`)가 이미 커버하며, 순수
+    빈틈은 cross-project *lesson*뿐인데 실수요가 아직 미실증 → YAGNI.
+  - 재진입 조건: 2개 이상 프로젝트에서 공유하고픈 페이지가 ≥3~5개 쌓이면, 최소판부터 —
+    SessionStart에서 `CAIRN_USER_DIR` index를 **읽기 전용**으로 주입하는 것까지만(write
+    라우팅·cross-vault dedup 제외).
+
+---
+
 ## 라이선스
 
 MIT — [LICENSE](LICENSE).
